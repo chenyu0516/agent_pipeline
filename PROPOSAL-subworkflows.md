@@ -1,12 +1,14 @@
 # Proposal: stages as checkpointed sub-workflows
 
-Status: PROPOSAL v6 for decision. Nothing in the repo changes until the decision register at the end is filled in.
+Status: ACCEPTED v7 on 2026-09-18. Every decision in the register is taken: D6, D9, D16, D21, D24 as decided in the rows, D11 as (c), and every other row at its recommendation. Phase 1 build follows this document; `stages/REFS.md` is the normative grammar from here on.
+
+Changes from v6: loop bounds apply only to consecutive agent-drafted reviews, never to human-set routes; a progress check replaces the bound elsewhere. Intake is split into an initializer that gives you a structural template and a reviewer that only reviews what you filled; structural choices become delegatable. The rejection log gains a curated global tier. D9 is answered: Obsidian vault, and the first project through the pipeline is the wiki-management skill set. Export formats beyond markdown are deferred until the pipeline runs.
 
 Changes from v5: every defined object (assumption, result, prediction, hypothesis, feature, metric, symbol) has a human name and an anchor in the document, and a short id that appears only in definition comments and pipeline files. Prose in the document refers to objects by name with a link, never by id. A resolver maps id, name, or anchor to the current text for both humans and agents. Stage 1 intake runs only when the questions file changes, not per paper.
 
 ## Hook
 
-The current `PIPELINE.md` treats each stage as one agent call that produces one finished document. Your stages take days, and you discover problems only in that finished document, when everything in it already depends on the mistake. Rejecting a finished idea doc costs you the whole stage. The obvious fix, one file per step, produces fragments no collaborator can read, decisions made in a chat window nobody can find, documents that swell with their own history, and prose full of tokens like "A3" that mean nothing to a coworker.
+The first workflow map (v0 of what is now `README.md`) treated each stage as one agent call that produces one finished document. Your stages take days, and you discover problems only in that finished document, when everything in it already depends on the mistake. Rejecting a finished idea doc costs you the whole stage. The obvious fix, one file per step, produces fragments no collaborator can read, decisions made in a chat window nobody can find, documents that swell with their own history, and prose full of tokens like "A3" that mean nothing to a coworker.
 
 ## Core claim
 
@@ -120,7 +122,9 @@ items:
     answer: null               # an option, free text, or `delegate`
 ```
 
-Rules: framing and structural items must be answered before the generator runs; detail items may be delegated; answers are written into the input file under `## Decisions`; the generator lists every delegated choice it made in a `Choices made` block at the end of its section; every such entry becomes a pre-filled item in the next human review of that section. Decisions D21, D22.
+Two agents share the gate and never overlap. The **intake-initializer** runs first, once per input file, and turns your rough text into a structural template for that stage: the headings the generator will need, your existing text slotted under the right heading, and each empty slot marked `[fill: <what goes here and why the generator needs it>]`. It proposes nothing. You fill the template. The **intake-reviewer** then reviews what you filled and produces the intake review above: what is still missing, what is ambiguous, what conflicts with an earlier decision, each with severity and downstream effect. It reviews; it does not write content into the template.
+
+Rules: framing items must be answered by you; structural and detail items may be marked `delegate`; the filled template is the input file itself, so there is no second copy; the generator lists every delegated choice in a `Choices made` block at the end of its section; every such entry becomes a pre-filled item in the next human review of that section. The initializer reruns only if you ask, since your filled text is the source; the reviewer reruns whenever the file's hash changes. Decisions D21, D22.
 
 ### 6. Current-design rule and the rejection log
 
@@ -142,7 +146,9 @@ R18 | 2026-10-09 | ext-r3 | §experiment.procedure | proposal: "use Sharpe as pr
 R19 | 2026-10-09 | manual | §model.formal | proposal: "model σ_t as GARCH(1,1)" | rejected: tried in vol-garch-2025, prediction failed | by: chen-yu
 ```
 
-Entries are written automatically when a review item removes or replaces something, when an imported item is countered or declined, when a stage 5 rewind names a falsified assumption, and manually through `/reject`. Every generator receives the entries for its sections, and every generator pass rule includes "nothing in the log for these sections". `/reject revive R17 --why` marks an entry revived; nothing is deleted. Decision D24 sets scope.
+Entries are written automatically when a review item removes or replaces something, when an imported item is countered or declined, when a stage 5 rewind names a falsified assumption, and manually through `/reject`. Every generator receives the entries for its sections, and every generator pass rule includes "nothing in the log for these sections". `/reject revive R17 --why` marks an entry revived; nothing is deleted.
+
+The log has two tiers. The project log at `work/<slug>/pipeline/REJECTED.md` is automatic and complete. The global log at `agent/REJECTED-global.md` is curated: `/reject promote R19` copies an entry there when the lesson outlives the project, such as "GARCH(1,1) for this volatility target failed its prediction in vol-garch-2025". Every generator receives its project entries plus the whole global log. Decision D24.
 
 ### 7. Review object
 
@@ -229,13 +235,13 @@ One skill per stage, `/read`, `/ideate`, `/design`, `/implement`, `/verdict`, pl
 
 0. **Consistency.** Tree clean; head matches; last commit matches last state entry.
 1. **References.** Rehash sections and objects; rebuild the `objects` map; resolve every link; check link texts against names; mark stale sections and reviews; check budgets; commit `STALE` if anything changed.
-2. **Intake.** For every input file whose hash changed, draft an intake review and stop.
+2. **Intake.** For an input file seen for the first time, run `intake-initializer`, write the template back into the file, and stop for you to fill it. For an input file whose hash changed since its last intake review, run `intake-reviewer`, write the intake review as draft, and stop.
 3. **Pending review.** Only `route_to` and downstream are runnable; on completion, verify mode, then your per-item confirmation, then `APPLY` and promote the next queued review.
 4. **Human gate.** Draft the review with `Choices made` entries pre-loaded, stop; `/review commit` validates and commits.
 5. **Run.** Extract input sections, the pending review if routed, the log entries for the owned sections, and resolver cards for every object the inputs link; run the agent; write output; bump versions.
 6. **Automated gate.** Hygiene, refs, log dedupe, specialist. Fail: `REJECT`, retry once; second fail stops.
 7. **Commit.** `PASS`; continue unless the next step is a human gate.
-8. **Bounds.** A route at its maximum forces `abandon` or an explicit override.
+8. **Progress check.** Routes you set are unbounded, since new information from coworkers or experiments can arrive at any time. Two guards replace the bound. Consecutive agent-drafted reviews (`math-checker`, `leakage-auditor`) with no human review between them are capped at two, after which the orchestrator stops and asks you. And when a new review's items match a prior review's items on the same objects with no intervening change to those objects, the orchestrator flags "no progress since <review id>" and asks you to confirm before routing.
 
 No research tools. Writes only `state.yaml`; calls `doc.py`, `review.py`, git; invokes agents.
 
@@ -265,7 +271,7 @@ No research tools. Writes only `state.yaml`; calls `doc.py`, `review.py`, git; i
 | 2c ⏸ | formalize | `idea-drafter`; `plan-reviewer` → human | `§problem`, `§position`, `scribble.md` with decisions, log, pending review if routed | `§model.notation`, `§model.assumptions` (named, tagged), `§model.formal`; review 2c-r<n> | every assumption named and tagged; scribble diff present; math rules; delegated choices seen | hygiene, review | route 2c |
 | 2d | derive | `deriver` | `§model.*` inputs, resolver cards, log, pending review if routed | `§model.derivation` (named results) | every step links the assumptions it uses; no unlisted assumption | `math-checker` | drafts a review to 2c |
 | 2e | predict | `idea-drafter` | `§model.assumptions`, `§model.derivation`, log | `§model.predictions` (named, each linking what it tests) | every `[own]` assumption has a prediction or `untestable, accepted`; every result has a prediction; no empirical numbers | hygiene | retry |
-| 2f ⏸ | adversarial review | `idea-reviewer` → human | `§problem` through `§model.predictions`, log | review 2f-r<n> | you set verdict and route | review | route 2c or 2d, bound 3 |
+| 2f ⏸ | adversarial review | `idea-reviewer` → human | `§problem` through `§model.predictions`, log | review 2f-r<n> | you set verdict and route | review | route 2c or 2d |
 | 2g | finalize | `doc-keeper` | all | `§context`, `§status`, stubs, export | budgets; standalone | hygiene | retry |
 
 Step 2d derives the chain of consequences from the assumptions to named results, each step linking the assumptions it uses; a missing assumption becomes a drafted review to 2c, never a silent addition. Step 2e converts each result and each own assumption into a named prediction that data can contradict, with quantity, direction, comparison, and kill condition.
@@ -323,7 +329,8 @@ Step 2d derives the chain of consequences from the assumptions to named results,
 |---|---|---|---|
 | `doc-hygiene-reviewer` | all prose | Sonnet | built; add standalone, current-design rule, name quality |
 | `ref-checker` | all | script | no LLM; owns the `objects` map and the resolver |
-| `intake-reviewer` | 1·in, 2a·in, 2c·in, 3b·in | Opus | lists open choices; never answers them |
+| `intake-initializer` | 1·in, 2a·in, 2c·in, 3b·in, first pass | Sonnet | turns rough input into a stage-specific template with your text slotted in and empty slots marked; proposes no content |
+| `intake-reviewer` | 1·in, 2a·in, 2c·in, 3b·in, every change | Opus | reviews the filled template; lists what is missing, ambiguous, or conflicting with severity; never fills anything |
 | `review-converter` | `/review import` | Opus | maps coworker text to items by object name; proposes dispositions |
 | `doc-keeper` | 1e, 2g, 3e, 5b, `/split` | Sonnet | Context, stubs, index, versions, export with registry, wiki notes, `§status` |
 | `plan-reviewer` | drafts 1a, 1e, 2a, 2c, 3b, 3e, 4b | Opus | checks against contract, previous review, `Choices made`, log |
@@ -343,7 +350,7 @@ Step 2d derives the chain of consequences from the assumptions to named results,
 
 ```
 agent/                              # git repository
-  CLAUDE.md  PIPELINE.md
+  CLAUDE.md  README.md
   stages/REFS.md                    # section ids, object kinds and naming rules, taxonomy templates, review and intake schemas, banned phrases
   stages/0N-*/CONTRACT.md STEPS.md
   .claude/agents/<name>.md
@@ -362,7 +369,7 @@ agent/                              # git repository
 
 ## Process: intake, review, import, rewind
 
-**Intake.** You write a four-line `seed.md` and run `/ideate vol-regime-kalman`. The intake reviewer returns five questions; you answer three and delegate two. `idea-drafter` writes `§problem` with a `Choices made` block. `plan-reviewer` drafts `2a-r1` with those two choices as items pre-set to accept. You counter one; its proposal is logged. Applied on the next pass.
+**Intake.** You write a four-line `seed.md` and run `/ideate vol-regime-kalman`. The initializer rewrites the file as a template: your four lines slotted under Observed and Goal, and empty slots for Unknown, Target quantity, Horizon, Data you have in mind, each marked with why the drafter needs it. You fill four slots and leave two blank. The reviewer returns five items: two framing you must answer, three structural or detail you delegate. `idea-drafter` writes `§problem` with a `Choices made` block. `plan-reviewer` drafts `2a-r1` with those two choices as items pre-set to accept. You counter one; its proposal is logged. Applied on the next pass.
 
 **Naming.** At 2c the drafter defines four assumptions as headings: Gaussian noise, latent mean reversion, volatility persistence, known volatility scale. The ids `A1` to `A4` sit in comments. `§model.formal` says "under [Gaussian noise](#gaussian-noise) and [latent mean reversion](#latent-mean-reversion), the state equation is ...". The ref-checker confirms four links, four definitions, no bare ids.
 
@@ -384,7 +391,8 @@ Failure modes, in order of likelihood:
 - **Log becomes a wall.** Guard: scoped to the current project's sections by default; revive exists.
 - **History leaks back.** Guard: mechanical rejected-span diff plus phrase list.
 - **Counter without a fix.** Guard: decline needs "finding invalid because"; otherwise counter.
-- **Review friction, verify rubber-stamping, version confusion, premature splitting, git erosion, orchestrator drift, untested own assumptions, loop without progress.** Guards as before: one-command accepts and pruning; quote per item; humans read versions and tools read hashes; budget-only splits; hooks; no research tools; a hypothesis per own-assumption prediction; bound forces abandon or override.
+- **Loop without progress.** The same items reopen on the same objects. Guard: the progress check flags a repeat and asks you; agent-drafted loops cap at two without you.
+- **Review friction, verify rubber-stamping, version confusion, premature splitting, git erosion, orchestrator drift, untested own assumptions.** Guards as before: one-command accepts and pruning; quote per item; humans read versions and tools read hashes; budget-only splits; hooks; no research tools; a hypothesis per own-assumption prediction.
 
 ## Close
 
@@ -401,26 +409,26 @@ The pipeline keeps its five stages and per-stage contracts. Inside each stage, s
 | D3 | orchestrator | (a) skill per stage; (b) Python driver; (c) both, skill first | (c) |
 | D4 | human gates | (a) all ten; (b) drop 1e, 3e, 4b; (c) only 2a, 2c, 2f, 5a | (a) for a month, then prune |
 | D5 | where `work/` lives | (a) this repo; (b) wiki; (c) experiment repo | (a) |
-| D6 | loop bound per route | 2 / 3 / unbounded | 3 |
+| D6 | loop bound | decided: human-set routes unbounded; agent-drafted reviews capped at two consecutive; progress check on repeated items | — |
 | D7 | build order | (a) stage 2 first; (b) stage 1 first; (c) `doc.py`, `review.py`, ledger, ref-checker first, then stage 2 | (c) |
 | D8 | Codex's role | (a) none; (b) `idea-reviewer` and `leakage-auditor` on Codex; (c) Codex drafts | (b) |
-| D9 | wiki tool and note format | your answer | needed for `wiki-searcher` |
+| D9 | wiki | decided: Obsidian vault, LLM-wiki framework, markdown with frontmatter and wikilinks; `wiki-searcher` reads the vault on disk; the first project through the pipeline is the wiki-management skill set | — |
 | D10 | commit enforcement | (a) hooks reject; (b) hooks warn; (c) convention | (a) |
-| D11 | staleness | (a) any input change; (b) referenced objects only; (c) (a) plus "re-verify only" | (c) |
-| D12 | who may draft a review | (a) human gates plus `math-checker` and `leakage-auditor`; (b) any gate; (c) human gates only | (a) |
+| D11 | staleness: when an input section changes, which dependents are marked stale | (a) every dependent of that section, even for a typo; (b) only dependents that link an object whose own hash changed, which misses a newly added assumption a derivation should now use; (c) as (a), but when no linked object changed the orchestrator offers "re-verify only", which reruns the dependent's gate against the new inputs instead of regenerating it | (c) |
+| D12 | which automated gates may draft a review that routes backward, outside the ten human gates where `plan-reviewer`, `idea-reviewer`, and `results-reviewer` always draft | (a) `math-checker` and `leakage-auditor` only; (b) any automated gate including hygiene; (c) none, automated gates only reject and retry | (a) |
 | D13 | own assumptions | (a) prediction or explicit "accepted untested"; (b) prediction mandatory | (a) |
 | D14 | file budget | 300 / 400 / 600 lines | 400 |
-| D15 | taxonomy | (a) fixed; (b) per-project template; (c) free-form with required ids | (b) |
-| D16 | export format | (a) markdown; (b) plus PDF; (c) plus wiki page | (a) now, (c) after D9 |
+| D15 | taxonomy | (a) fixed; (b) per-project template, with a tooling template needed for the first project; (c) free-form with required ids | (b) |
+| D16 | export format | decided: markdown only until the pipeline runs end to end; backlog in this order: HTML slides for group meeting, Quarto for static Python, Marimo for interactive; all are renderers over the same document tree | — |
 | D17 | who verifies application | (a) reviewer proposes per item, you confirm per item; (b) you alone; (c) reviewer alone | (a) |
 | D18 | concurrent reviews | (a) one pending, others queued; (b) one per stage; (c) unlimited | (a) |
 | D19 | review editing surface | (a) edit the file; (b) `/review` prompts; (c) both | (c) |
 | D20 | version counters | (a) per file; (b) per file and per section; (c) per document only | (a) |
-| D21 | delegatable intake severity | (a) `detail` only; (b) `detail` and `structural`; (c) anything | (a) |
+| D21 | delegatable intake severity | decided: (b) `detail` and `structural`; `intake-initializer` supplies the structural template, `intake-reviewer` only reviews; framing must be answered by you | — |
 | D22 | `Choices made` default in the next review | (a) pre-set accept, you may counter; (b) open, you must disposition each | (a) |
 | D23 | reply to coworkers | (a) on `/review reply` only; (b) automatically at apply; (c) never | (a) |
-| D24 | rejection-log scope for generators | (a) current project's sections; (b) all projects, same section; (c) all projects | (a) with `--global` |
-| D25 | registry location | (a) export appendix only; (b) also a generated `docs/REGISTRY.md`; (c) also inline at the end of each file | (b), one generated file, never edited |
+| D24 | rejection-log scope for generators | decided: project log plus a curated global log filled by `/reject promote`; no flag | — |
+| D25 | registry: a generated index of every object, all kinds, with name, id, tag, location, and links; symbols from the notation table are one kind among seven | (a) export appendix only; (b) also a generated `docs/REGISTRY.md`; (c) also inline at the end of each file | (b), one generated file, never edited |
 | D26 | object id visibility for coworkers | (a) ids only in the registry appendix; (b) ids also as hover text on links; (c) ids also in a footnote per definition | (a) |
 | D27 | anchor scheme | (a) heading text slug, GitHub style; (b) explicit `{#id}` attributes, pandoc style; (c) both, slug canonical | (a); works in GitHub, Obsidian, VS Code without plugins |
 
@@ -435,6 +443,7 @@ The pipeline keeps its five stages and per-stage contracts. Inside each stage, s
 | commit grammar + hooks | ownership, author check, version bump, rename link rewrite |
 | `STEPS.md` × 5 | tables above per D1, D4 |
 | skills: 5 stages, `/split`, `/review`, `/reject` | `/ideate`, `/review`, `/reject` first |
+| `intake-initializer` | one template per input kind in `REFS.md`, specialized per project taxonomy |
 | `intake-reviewer`, `review-converter` | shared item schema, object-name anchoring |
 | `plan-reviewer`, `idea-reviewer`, `results-reviewer` | shared review template, draft and verify |
 | `doc-keeper`, `doc-hygiene-reviewer` update | versions, registry, standalone, current-design rule, name quality |
@@ -442,7 +451,7 @@ The pipeline keeps its five stages and per-stage contracts. Inside each stage, s
 | `paper-reader`, `wiki-searcher` | after D9 |
 | stage 3, 4 agents | after stage 2 end to end |
 | `/review-logs` | weekly: `REJECT` commits, reopened items, countered `Choices made`, renamed objects |
-| `PIPELINE.md` shrink | pointers |
+| `README.md` | pointer table and build phases (formerly `PIPELINE.md`) |
 
 ### Timeline
 
@@ -450,7 +459,7 @@ The pipeline keeps its five stages and per-stage contracts. Inside each stage, s
 |---|---|---|---|
 | 0 | decision register D1–D27 | you | 1 sitting |
 | 1 | `REFS.md`, `doc.py` with resolver, `review.py`, hooks, `state.py`, `ref_checker.py`, `STEPS.md` × 5; a fake project with six named objects through one intake, one review, one import, one split, one rename | 0 | 4 days |
-| 2 | `/ideate`, `/review`, `/reject`, `intake-reviewer`, `doc-keeper`, `plan-reviewer`, `idea-reviewer`, stage 2 generators; one idea through with an intake, a revise review, a hand edit, a split, and one logged rejection; export read cold by one coworker | 1, D8, D9 | 1 week |
+| 2 | `/ideate`, `/review`, `/reject`, `intake-initializer`, `intake-reviewer`, `doc-keeper`, `plan-reviewer`, `idea-reviewer`, stage 2 generators, tooling taxonomy template; first project: the Obsidian wiki-management skill set, taken through intake, a revise review, a hand edit, a split, and one logged rejection; export read cold by one coworker | 1, D8 | 1 week |
 | 3 | `review-converter`, `paper-reader`, `wiki-searcher`, `/read`; 5 papers; one imported coworker review | 2 | 4 days |
 | 4 | stages 3–5; one idea to a recorded rewind and an export | 3 | 1 week |
 | 5 | `/review-logs`, prune gates, revisit D12 and D24 | 4 | ongoing |
