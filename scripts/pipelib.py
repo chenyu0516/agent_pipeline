@@ -106,7 +106,7 @@ VERBS = [
     "REWIND", "STALE", "SPLIT", "EXPORT", "REJECT-LOG", "INIT",
 ]
 COMMIT_RE = re.compile(
-    r"^(?P<slug>[a-z0-9][a-z0-9\-]*)/(?P<step>[0-9][a-z](?:·in)?|-) "
+    r"^(?P<slug>[a-z0-9][a-z0-9\-]*)/(?P<step>[0-9][a-z](?:[·.\-]in)?|-) "
     r"(?P<verb>" + "|".join(re.escape(v) for v in VERBS) + r")"
     r"(?: a(?P<attempt>\d+))?"
     r"(?: (?P<review>(?:[0-9][a-z]|ext)-(?:r|in)\d+))?"
@@ -116,6 +116,17 @@ REVIEW_ID_RE = re.compile(r"^(?:[0-9][a-z]|ext)-(?:r|in)\d+$")
 
 
 # ----------------------------------------------------------------------------- small helpers
+def norm_sid(s: str) -> str:
+    """Accept 'problem' or 'model.notation' as well as '§problem'."""
+    s = s.strip()
+    return s if s.startswith("§") or not s else "§" + s
+
+
+def norm_step(s: str) -> str:
+    """Accept '2a-in' or '2a.in' as well as '2a·in'."""
+    return re.sub(r"[.\-]in$", "·in", s.strip())
+
+
 def sha(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
 
@@ -1099,7 +1110,11 @@ def git_log_for(cwd: Path, path: Path, n: int = 200) -> list[tuple[str, str]]:
 
 def parse_commit(msg: str) -> dict | None:
     m = COMMIT_RE.match(msg.strip().splitlines()[0] if msg.strip() else "")
-    return m.groupdict() if m else None
+    if not m:
+        return None
+    d = m.groupdict()
+    d["step"] = norm_step(d["step"]) if d["step"] != "-" else "-"
+    return d
 
 
 def format_commit(slug: str, step: str, verb: str, msg: str, attempt: int | None = None, review: str | None = None) -> str:

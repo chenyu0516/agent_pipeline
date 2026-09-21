@@ -356,7 +356,7 @@ def log_cmd(a):
         print(f"{a.rid} revived")
     elif a.logcmd == "show":
         for e in pl.log_entries(project, include_global=a.glob):
-            if a.section and not e["target"].startswith(a.section):
+            if a.section and not e["target"].startswith(pl.norm_sid(a.section)):
                 continue
             print(e["raw"])
 
@@ -381,7 +381,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     if a.cmd == "new":
-        path = new(Path(a.project).resolve(), a.step, a.kind, a.sections, a.input, Path(a.source).resolve() if a.source else None, a.frm, a.by)
+        path = new(Path(a.project).resolve(), pl.norm_step(a.step), a.kind, [pl.norm_sid(x) for x in a.sections], a.input, Path(a.source).resolve() if a.source else None, a.frm, a.by)
         print(f"draft {path}")
     elif a.cmd == "validate":
         errs = validate(Path(a.file))

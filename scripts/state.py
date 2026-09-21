@@ -54,6 +54,8 @@ def record_step(project: Path, step: str, status: str, inputs: list[str]):
     if status == "done":
         bf, bo = {}, {}
         for key in inputs:
+            if not pl.input_path(project, key).exists():
+                key = pl.norm_sid(key)
             if key.startswith("§"):
                 if key not in tree.sections:
                     pl.die(f"unknown section {key}")
@@ -131,7 +133,7 @@ def main(argv=None):
         print("\n".join(problems) if problems else "consistent")
         sys.exit(1 if problems else 0)
     elif a.cmd == "step":
-        record_step(project, a.step, a.status, a.inputs)
+        record_step(project, pl.norm_step(a.step), a.status, a.inputs)
     elif a.cmd == "stage":
         st = pl.load_state(project); st["stage"] = a.stage; pl.save_state(project, st); print(f"stage: {a.stage}")
     elif a.cmd == "rebuild":

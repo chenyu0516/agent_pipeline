@@ -34,13 +34,14 @@ Daily equity returns show volatility clustering that a constant-variance forecas
 
 **Choices made.** Horizon: daily, delegated at intake; picked daily because the data file lists daily bars only.
 EOF
-$PY/doc.py put . §problem --from "$TMP/problem.md"
+$PY/doc.py put . problem --from "$TMP/problem.md"
+$PY/doc.py get . problem | head -2
 expect_fail $PY/commit.py --all "vol-regime/2b PASS: wrote problem"
 $PY/state.py step . 2a done --inputs seed.md
 $PY/commit.py --all "vol-regime/2a PASS a1: problem framed" && echo ok
 
 step "4 intake review on seed.md"
-$PY/review.py new . --step 2a·in --kind intake --input seed.md
+$PY/review.py new . --step 2a-in --kind intake --input seed.md
 uv run --quiet --project "$SRC" python - docs/reviews/2a-in1.md <<'EOF'
 import sys, yaml
 p=sys.argv[1]; t=open(p).read(); end=t.find("\n---",3); fm=yaml.safe_load(t[3:end]); body=t[end+4:]

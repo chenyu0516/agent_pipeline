@@ -1,295 +1,220 @@
 # agent_pipeline
 
-A checkpointed research pipeline for quantitative research with Claude Code agents: read papers, turn rough ideas into models, test them in Python, decide what to do with the result. One design document per project, a git ledger behind it, a human at every decision.
+A checkpointed research pipeline: read papers, turn rough ideas into models, test them in Python, decide what to do with the result. Each research project is one design document in its own git repository, with a ledger behind it and a human at every decision. This repository holds the tools. This file tells you how to run them.
 
-This repository holds the tools, the grammar, the templates, and the agent definitions. Each research project is a separate git repository created by these tools. This file is the implementation guide: setup, layout, what each tool and hook does, how to drive a project by hand today, how to share a project, and where the build deviates from the design. It does not restate the design. For that, read `PROPOSAL-subworkflows.md`; for the exact rules the scripts enforce, read `stages/REFS.md`.
+Today the tools, the document format, the reviews, the ledger, and the git hooks work. The agents that will write sections for you do not exist yet, so in this runbook you write sections yourself, or paste what Claude Code drafts in an ordinary chat. The commands stay the same when the agents arrive.
 
-Status: design accepted 2026-09-18. Phase 1 built and self-tested. Phase 2 next. First project: the Obsidian wiki-management skills, on the `tooling` template.
+Other files: `PROPOSAL-subworkflows.md` is why the pipeline is shaped this way. `stages/REFS.md` is the exact grammar the tools enforce. `IMPLEMENTATION.md` is the reference for layouts, tools, hooks, templates, and where the build deviates from the proposal.
 
-## 1. Document map
-
-| file | what it holds | read it for |
-|---|---|---|
-| `PROPOSAL-subworkflows.md` | the accepted design: problem, mechanisms, taxonomy, objects, intake, reviews, rejection log, ledger, orchestrator, stage tables, gates, agent roster, walkthrough, failure modes, decisions D1–D27, build map, timeline | why anything is the way it is |
-| `stages/REFS.md` | the normative grammar: project layout, file format, section and object markers, links, prose rules, versions, ledger fields, commit grammar, review schema, log line, commands | what the scripts check, exactly |
-| `stages/0N-*/STEPS.md` | one step table per stage | who does what at each step |
-| `stages/0N-*/CONTRACT.md` | per-stage output template, rubric, known failure modes | what an agent must produce; predates the object rules, rewritten per stage in phases 2–4 |
-| `CLAUDE.md` | rules every agent inherits | what every agent is told |
-| this file | setup, layout, tools, hooks, manual operation, templates, sharing, self-test, deviations, status | how to run it |
-
-## 2. Setup
+## 1. Install, once
 
 ```
-cd ~/Documents/agent                      # this repository
-uv sync                                   # creates .venv with PyYAML; once
-export PATH="$HOME/Documents/agent/bin:$PATH"   # gives you `rp`; put it in your shell profile
-rp selftest                               # optional: proves every mechanism in a temporary project
+cd ~/Documents/agent
+uv sync
+echo 'export PATH="$HOME/Documents/agent/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+rp where
 ```
 
-Requirements: Python 3.11 or newer, `uv`, git. Nothing here calls a model; the agents run inside Claude Code and use these tools.
+`rp where` prints `/Users/chen-yu/Documents/agent`. If it prints "command not found", the PATH line did not take; open a new terminal. Needs Python 3.11 or newer, `uv`, and git.
 
-`rp` is a shell shim that runs the tools through this checkout's environment from any directory. Project hooks find the tools the same way, through `$AGENT_PIPELINE_ROOT`, then the gitignored `.pipeline/tool_root` written at project creation, then `rp` on `PATH`. A coworker who clones a project needs this repository too and sets one of those three.
-
-## 3. Layout of this repository
+Prove everything works:
 
 ```
-agent/                                  # tool repository, GitHub chenyu0516/agent_pipeline
-  README.md                             # this file
-  PROPOSAL-subworkflows.md              # accepted design and decision register
-  CLAUDE.md                             # rules every agent inherits
-  REJECTED-global.md                    # curated cross-project rejection log; created by `rp review log promote`
-  pyproject.toml  uv.lock  .gitignore   # uv project; .venv and work/ are ignored
-  bin/rp                                # the entry point shim
-  .claude/
-    agents/doc-hygiene-reviewer.md      # the one built agent; others land in phases 2–4
-    skills/                             # orchestrators, phase 2
-  stages/
-    REFS.md                             # normative grammar
-    templates/
-      quant-model.yaml                  # sections, owners, object kinds, step outputs, inputs
-      ml-model.yaml  empirical-study.yaml  tooling.yaml
-    intake/
-      seed.md  scribble.md  data.md  questions.md   # base structural templates copied into each project
-    01-read/      STEPS.md  CONTRACT.md
-    02-ideate/    STEPS.md  CONTRACT.md
-    03-design/    STEPS.md  CONTRACT.md
-    04-implement/ STEPS.md  CONTRACT.md
-    05-verdict/   STEPS.md
-  scripts/
-    cli.py                              # `rp` dispatcher
-    pipelib.py                          # library: parse the document tree, index, resolve, split, export, ledger, git
-    doc.py                              # the document tree tool
-    ref_checker.py                      # every hard rule and warning; staleness marking
-    state.py                            # ledger: show, check, step, stage, rebuild, head
-    review.py                           # review lifecycle and rejection log
-    commit.py                           # the one way to commit design or ledger changes
-    hooks.py                            # logic behind a project's three git hooks
-    selftest.sh                         # fake project through every mechanism
-  benchmarks/0N-*/                      # 3–5 real input/accepted-output pairs per stage; empty so far
+rp selftest
 ```
 
-## 4. Layout of a project
+The last line must be `ALL STEPS RAN in /var/folders/.../vol-regime`. It builds a throwaway project in a temporary directory and runs every mechanism below. Two lines starting with `error:` are expected; they are refusals the test checks for.
 
-`rp doc init <slug> --template <name> --at <parent dir>` creates `<parent dir>/<slug>` as a new git repository with hooks enabled. The pipeline governs `docs/` and `.pipeline/`. Everything else commits with plain git and any message.
+## 2. Create a project
+
+Pick a slug: lowercase, hyphens, no spaces. Pick a template: `quant-model` for a mathematical model tested on data, `tooling` for a software project such as the wiki skills, `ml-model`, or `empirical-study`.
 
 ```
-<slug>/                                 # its own git repository
-  README.md                             # short entry point written at init; edit freely
-  docs/
-    DESIGN.md                           # root of the design tree, always present
-    model.md  model/derivation.md       # split-out sections, created by `rp doc split`
-    REGISTRY.md                         # generated object index; never edit
-    REJECTED.md                         # project rejection log, append-only
-    DEFERRED.md                         # deferred review items
-    inputs/
-      seed.md  scribble.md  data.md  questions.md   # human inputs, each ending with ## Decisions
-    reviews/
-      2a-in1.md  2f-r1.md  ext-r1.md    # intake, gate, and external reviews; append-only
-      external/                         # coworker originals
-    export/<slug>-full.md               # single-file export with stubs inlined and registry appended
-  src/                                  # code
-  scripts/                              # experiment scripts
-  runs/<id>/                            # experiment runs
-  .githooks/                            # pre-commit, commit-msg, post-commit wrappers written at init
-  .gitignore                            # ignores .pipeline/tool_root, caches
-  .pipeline/
-    state.yaml                          # ledger index
-    INDEX.yaml                          # sections, objects, versions; rebuilt by every tool run
-    template.yaml                       # copy of the taxonomy template, so the project is self-contained
-    attempts/<step>-a<n>.md             # rejected attempts
-    tool_root                           # absolute path of this tool repository; gitignored
+rp doc init wiki-skills --template tooling --title "Obsidian wiki skills" --at ~/research
+cd ~/research/wiki-skills
+rp commit --all "wiki-skills/- INIT: project created"
 ```
 
-The commit message slug is the project directory name and must match `state.yaml`.
+You now have a git repository with hooks enabled, a `docs/DESIGN.md` holding every section as a pending placeholder, input files under `docs/inputs/`, and a ledger under `.pipeline/`. The `INIT` commit is the first ledger commit. Look around:
 
-## 5. What a project looks like on disk
+```
+cat docs/DESIGN.md
+rp state show .
+git log --oneline
+```
 
-`DESIGN.md` carries every section of the template as a pending placeholder at first. Sections, objects, and stubs are ordinary markdown headings followed by an HTML comment, so any viewer renders the document cleanly and the scripts parse it without a custom format:
+Rule for the whole project: anything under `docs/` or `.pipeline/` is committed with `rp commit` and a message in the form `<slug>/<step> <VERB>: <one line>`. Anything else, code in `src/`, experiment scripts in `scripts/`, outputs in `runs/`, the README, is ordinary git with any message.
+
+## 3. Fill in your seed and pass intake
+
+Open `docs/inputs/seed.md`. It is a template with `[fill: ...]` slots: observed, unknown, goal, target quantity, horizon, data, out of scope. Replace each slot with your own words. Rough is fine; that is what intake is for.
+
+Then record the intake review. The intake reviewer agent will draft the questions in phase 2; today you draft them yourself, which is still useful because it forces the open choices into the open:
+
+```
+rp review new . --step 2a-in --kind intake --input seed.md
+```
+
+This writes `docs/reviews/2a-in1.md`. Open it. The frontmatter has one placeholder item. For each choice your seed leaves open, add an item with a `severity` of `framing`, `structural`, or `detail`, the `choice` as a question, `why_it_matters`, `options`, and your `answer`. A framing item must have a real answer. A structural or detail item may have the answer `delegate`, which means the writer of the next section decides and must say so. Then:
+
+```
+rp review commit docs/reviews/2a-in1.md
+```
+
+Your answers are appended under `## Decisions` in `docs/inputs/seed.md` and committed as `wiki-skills/2a·in INTAKE 2a-in1`. If the commit is refused with "framing item must be answered by you", answer it.
+
+## 4. Write a section
+
+Every section has an owner step. For the `tooling` template the first ones are `problem` (step 2a), `position` (2b), then `design.terms`, `design.requirements`, `design.components` (2c). For `quant-model` they are `problem`, `position`, then `model.notation`, `model.assumptions`, `model.formal`. The full list is in `.pipeline/template.yaml`.
+
+Get the current section into a scratch file, write it, put it back:
+
+```
+rp doc get . problem > /tmp/problem.md
+$EDITOR /tmp/problem.md
+rp doc put . problem --from /tmp/problem.md
+rp check .
+```
+
+Keep the first two lines of the scratch file as they are: the heading and the `<!-- section: §problem | owner: 2a -->` comment. Write the body below them. If you delegated any choice at intake, end the section with a `**Choices made.**` paragraph naming the choice, what you picked, and one line why.
+
+`rp check .` prints `0 hard, 0 warnings` when the section is acceptable. Hard failures are things like a banned phrase ("previously", "updated to"), an object id such as `A1` in prose, or a link that does not resolve. Fix and rerun until it is clean.
+
+Then record what the section was built from and commit it as a `PASS` by its owner step:
+
+```
+rp state step . 2a done --inputs seed.md
+rp commit --all "wiki-skills/2a PASS a1: problem framed"
+```
+
+The order matters: `rp state step` before `rp commit`, so the ledger rides inside the commit. `a1` means first attempt. The commit is refused if the message names a step that does not own the changed section, for example `2b` for `problem`.
+
+Sections that define objects work the same way, with one more rule. An assumption, symbol, requirement, component, or any other object is a heading with a comment on the next line:
 
 ```markdown
-# Volatility regime filter
-<!-- file: DESIGN.md | version: v3 -->
-
-> **Context.** Volatility regime filter is a quant-model project. This file holds every section until one is split out. It depends on nothing yet. Status: ideate.
-
-## Problem
-<!-- section: §problem | owner: 2a -->
-Daily equity returns show volatility clustering ...
-
-### Assumptions
-<!-- section: §model.assumptions | owner: 2c -->
-
-#### Volatility persistence
-<!-- object: A2 | kind: assumption | tag: own -->
-The autocorrelation of [conditional volatility](#conditional-volatility) at lag one exceeds $0.9$.
-
-### Derivation
-<!-- stub: §model.derivation | file: model/derivation.md -->
-[summary pending]
-See [Derivation](model/derivation.md#derivation).
+#### Vault is plain markdown
+<!-- object: Q1 | kind: requirement | tag: own -->
+Every note is a UTF-8 markdown file with YAML frontmatter; no database.
 ```
 
-The exact grammar for each marker, the Context rule, anchors, and the prose rules are REFS sections 2 to 6. Ledger fields are REFS section 8, the review schema section 10, the log line section 11.
-
-## 6. The tools
-
-All run as `rp <tool> ...` from anywhere. `<project>` is a path; use `.` inside a project.
-
-**rp doc** is the only thing that should write to `docs/`. `init <slug> --template <name> [--at DIR]` creates a project repository. `get <project> <§id>` prints a section; `put <project> <§id> --from FILE` replaces it and bumps the file version; `append` adds a line without a bump, used for `§status`. `resolve <project> <query>` accepts an object id, a name in quotes, or `file#anchor` and prints the same card for all three: id, name, kind, tag, file and version, section, hash, everything that links to it, current text. `split <project> <§id>` moves a section and its children to a new file whose H1 is `<project title>: <section>`, leaves a stub, rewrites link paths, and rebuilds the index; `merge` reverses it. `export` produces the single file. `index`, `budget`, `version`, `relink`, and `bump` are maintenance.
-
-**rp check** runs every hard rule and warning in REFS section 6 and exits 1 on any hard failure. `--fix-links` rewrites link paths after a split and link anchors and texts after a rename, using the previous `INDEX.yaml` to know which object an old anchor belonged to. `--mark-stale` compares each done step's recorded input hashes to the tree, marks steps stale with a reason, records whether re-verify only is possible, and marks a pending review stale if a judged section changed off-route.
-
-**rp state** manages `.pipeline/state.yaml`. `show` prints it. `check` confirms `docs/` and `.pipeline/` are clean, the recorded head is HEAD or the parent of a HEAD that touches the ledger, the last ledger commit is in grammar, and versions match the tree. `step <project> <step> done --inputs §a §b seed.md` records what a step was built from, as section and input hashes plus the hashes of every object its sections link, and must run before the `PASS` commit so the ledger rides in the same commit. `rebuild` reconstructs step and review status from the git log.
-
-**rp review** is the review lifecycle. `new <project> --step 2f` drafts a review bound to the current commit, file versions, and the hashes of every section in the stage; `--kind intake --input seed.md` and `--kind external --source FILE --from "Name"` are the other kinds. `commit` adds your git user to the authors, validates, writes countered and declined proposals to the rejection log, writes intake answers under `## Decisions` in the input file, sets the status to pending, applied, or queued, and commits with the right verb. `disposition`, `verify`, `apply`, `waive`, `reply` follow the lifecycle in the proposal. `log add|show|promote|revive` is the rejection log; `promote` writes to `REJECTED-global.md` in this repository.
-
-**rp commit "<message>"** is the one way to commit design or ledger changes. It checks the message grammar, section ownership, and review route first, so a refused commit leaves the tree untouched; then fixes links, bumps versions, rebuilds the index, writes the step status and stale marks the message implies into `state.yaml`, stages `docs/` and `.pipeline/`, and commits. `--all` stages everything first. When the staged files touch only `src/`, `scripts/`, `runs/`, or the README, it is a plain commit with any message.
-
-## 7. Git hooks
-
-Written into every project at init and enabled there. Commits that touch nothing under `docs/` or `.pipeline/` pass straight through.
-
-| hook | what it does | refuses when |
-|---|---|---|
-| `pre-commit` | fix links, run the reference checker, bump versions of files whose sections changed, rebuild the index, stage `docs/` and the index | any hard failure from the reference checker |
-| `commit-msg` | parse the message; check grammar, section ownership for `PASS` and `REJECT`, route for `HUMAN` while a review is pending or stale, review id existence; then compute the ledger the message implies and compare it to the staged `state.yaml` | message not in grammar; a step changed a section it does not own; a human edit off the review's route; staged ledger differs from the implied one, in which case it prints the `rp commit` line to run |
-| `post-commit` | print the commit, the pending review if any, and stale steps | never |
-
-Why a wrapper and not hooks alone: git snapshots the index after `pre-commit` and before `commit-msg`, so a hook that learns the message cannot add the ledger it implies to the same commit. `rp commit` writes the ledger before calling git; `commit-msg` verifies that what is staged matches. A raw `git commit` still works whenever the staged ledger already matches.
-
-Refusals look like this:
+The heading is the object's name. Elsewhere in the document, refer to it by name as a link, `[vault is plain markdown](#vault-is-plain-markdown)`, never as `Q1`. To see what an id or name points to:
 
 ```
-commit-msg: docs/ or .pipeline/ is touched, message must be '<slug>/<step> <VERB>[ a<n>][ <review-id>]: <one line>'
-commit-msg: PASS by 2b may not change ['§problem'] in DESIGN.md; it owns ['§position']
-commit-msg: review 2f-r1 is pending and routes to 2c; HUMAN may change only [...], not ['§problem']. Waive the review first.
-HARD  DESIGN.md: bare object id 'A1' in prose: 'By A1 the filter gain is constant.'
-HARD  §model.formal: reuses a rejected proposal R2 ('process instead of a state space...')
+rp doc resolve . Q1
+rp doc resolve . "vault is plain markdown"
 ```
 
-## 8. Driving a project by hand
+Which kinds exist, their prefixes, and which section defines them is in `.pipeline/template.yaml` under `kinds`. Assumptions and requirements need a `tag`: `lit`, `standard`, or `own`.
 
-No orchestrator skill exists yet, so a step is run with the commands below from inside the project. The phase 2 orchestrator will issue exactly these.
+## 5. Hold a review
+
+Some steps are human gates: `2a`, `2c`, and `2f` in stage 2. At a gate you draft a review, finish it, commit it, and if it asks for changes, the pipeline routes back to one step until every item is applied. The reviewer agents will draft in phase 2; today you write the draft.
 
 ```
-# create
-rp doc init vol-regime --template quant-model --title "Volatility regime filter" --at ~/research
-cd ~/research/vol-regime
-rp commit --all "vol-regime/- INIT: project created"
-
-# fill an input, then record intake (the intake agents arrive in phase 2; the file format works now)
-$EDITOR docs/inputs/seed.md
-rp review new . --step 2a·in --kind intake --input seed.md
-$EDITOR docs/reviews/2a-in1.md                              # answer every item
-rp review commit docs/reviews/2a-in1.md
-
-# run a generator step: write the section, record what it was built from, commit PASS
-rp doc get . §problem > /tmp/problem.md
-$EDITOR /tmp/problem.md                                     # or an agent writes it
-rp doc put . §problem --from /tmp/problem.md
-rp check .
-rp state step . 2a done --inputs seed.md
-rp commit --all "vol-regime/2a PASS a1: problem framed"
-
-# a human gate: draft, edit, commit; on revise, rerun the routed step, then verify and apply
 rp review new . --step 2f --by idea-reviewer
-$EDITOR docs/reviews/2f-r1.md                               # items, verdict, route_to
-rp review commit docs/reviews/2f-r1.md
-...                                                         # rerun 2c and downstream with rp commit
-rp review verify docs/reviews/2f-r1.md --set I1 addressed "the new text"
-rp review apply docs/reviews/2f-r1.md
-
-# a hand edit to a section
-$EDITOR docs/DESIGN.md
-rp commit --all "vol-regime/2c HUMAN: loosened persistence threshold"
-
-# code is ordinary git
-$EDITOR src/filter.py && git add src && git commit -m "kalman filter skeleton"
-
-# split, export, reject
-rp doc split . §model
-rp commit --all "vol-regime/- SPLIT: model to model.md"
-rp doc export .
-rp review log add . --target "§model.formal" --proposal "..." --why "..."
-rp commit --all "vol-regime/- REJECT-LOG: R2"
+$EDITOR docs/reviews/2f-r1.md
 ```
 
-Rules of thumb. Record `rp state step ... done` before the `PASS` commit, not after. Never edit `INDEX.yaml` or `REGISTRY.md`; every tool rebuilds them. Never edit `state.yaml` by hand; if it is wrong, `rp state rebuild .`.
+In the frontmatter: set `verdict` to `accept`, `revise`, or `abandon`; on `revise` set `route_to` to the step that must rerun, for example `2c`. Each item has a `finding`, the reviewer's `proposal`, your `disposition` (`accept`, `counter`, `decline`, `defer`), and the `required` change. On `counter` you keep the finding and write your own `required`; the proposal goes to the rejection log automatically. On `decline` you must write "finding invalid because ..." in the prose below the frontmatter. Then:
 
-## 9. Sharing a project on GitHub
+```
+rp review commit docs/reviews/2f-r1.md
+```
 
-The ledger commits are the record of how the idea evolved, and they are what a collaborator's review binds to: every review stores the commit it judged and the commit that applied it, and `§status` prints both. That has one consequence for branching: never squash. A squash merge creates new hashes and orphans every version reference in `docs/reviews/` and `§status`.
+An `accept` is applied at once. A `revise` becomes pending. While a review is pending, only the routed step and the steps after it may change, and a `HUMAN` commit elsewhere is refused with "Waive the review first". Rerun the routed step as in section 4, then everything downstream of it. When done, record that each item is addressed with a quote of the new text, and apply:
 
-The recommended shape:
+```
+rp review verify docs/reviews/2f-r1.md --set I1 addressed "the text that now satisfies it"
+rp review apply docs/reviews/2f-r1.md
+```
 
-- Work on a `pipeline` branch. Every `PASS`, `REVIEW`, `APPLY`, `HUMAN`, and `SPLIT` lands there.
-- Merge into `main` with `git merge --no-ff pipeline` at stage tags, when the export has just been regenerated. `main` then reads as a sequence of stage completions, and the full ledger is one click away in each merge.
-- `rp state check` and `rp state rebuild` read the log of the current branch, so both branches stay consistent.
-- If you want a demonstration face with no ledger at all, publish the export file or a rendered site from `main`, and keep the repository itself as the audit trail. Deleting or rewriting the ledger to clean the history would remove exactly what a reviewer would ask for.
+`apply` writes one line to the `§status` section of the document, commits `APPLY 2f-r1`, and unblocks the pipeline. See the trail with `git log --oneline` and `rp doc get . status`.
 
-## 10. Taxonomy templates
+## 6. Edit by hand
 
-A template is one YAML file in `stages/templates/`. `rp doc init` copies it into the project as `.pipeline/template.yaml`, and every tool reads the copy afterwards, so later template edits do not change existing projects. Fields:
+You may edit any section directly. Commit it as a `HUMAN` change by its owner step:
 
-| field | meaning |
-|---|---|
-| `budget` | `lines` per file, and `child_lines` with `child_count` for the child-split trigger |
-| `kinds` | id prefix to `{kind, section, tag_required, tests}`; `section` is where objects of that kind must be defined; `tests` lists the prefixes an object may cite in `tests:` |
-| `sections` | the tree in order, each `{id, title, owner, children}`; heading level follows depth |
-| `inputs` | human input files, each with its intake step and consuming step |
-| `steps` | each step's `stage` and `outputs`, the sections it may write |
-| `step_order` | the order used for route checks and for the stage a step belongs to |
+```
+$EDITOR docs/DESIGN.md
+rp commit --all "wiki-skills/2c HUMAN: tightened the plain-markdown requirement"
+```
 
-To add a template, copy `quant-model.yaml`, rename kinds and sections, keep the step ids so the step tables and hooks still apply, and keep `§context` first and `§status` last. The `tooling` template shows a full renaming: terms, requirements, components, interfaces, acceptance criteria, checks, fixtures, measures.
+The commit bumps the file version and marks every step that was built from the changed section as stale. `rp state show .` lists stale steps and why. A stale step is regenerated by running it again as in section 4, which clears the mark. If you rename an object's heading, the commit rewrites every link to it.
 
-## 11. The self-test
+## 7. Reject an idea so it stays rejected
 
-`rp selftest` creates a fake quant-model project as its own repository in a temporary directory and drives it with the tools from this checkout. It prints `ALL STEPS RAN` on success and exits early on the first mechanism that misbehaves. It covers:
+When you decide against something, log it. Every later writer of that section is handed the log, and a section that reuses six or more consecutive words of a logged proposal is refused.
 
-1. init as a git repository with hooks, and a clean reference check;
-2. the project boundary: a commit touching only `src/` passes with a free-form message; with `docs/` staged, a free-form message is refused, a raw grammar commit is refused for a missing ledger, and `rp commit` succeeds;
-3. a `PASS` by the wrong step is refused on ownership; the right step passes with `built_from` recorded;
-4. an intake review writes answers under `## Decisions` and commits with the intake verb;
-5. three sections with symbols, assumptions, and links pass every check;
-6. a bare id and a banned phrase are hard failures;
-7. a derivation with a named result passes;
-8. a hand edit to an assumption marks the derivation stale;
-9. a gate review is drafted, edited to counter one item, committed as pending, and the countered proposal lands in the rejection log;
-10. a hand edit off the review's route is refused;
-11. the routed step reruns; verify records quotes; apply writes the status line and commits;
-12. a split moves the model to its own file, links are rewritten, the resolver answers by id, by name, and by anchor;
-13. a rename by hand has its link anchors and texts rewritten in the same commit;
-14. the export inlines the stub and appends the registry;
-15. a manual log entry blocks a section that reuses its proposal; promote writes to a temporary global log; revive works;
-16. `rp state check` is consistent and `rebuild` reproduces the ledger from the log.
+```
+rp review log add . --target "design.components" --proposal "one skill per note type" --why "explodes with note types; one skill per verb instead"
+rp commit --all "wiki-skills/- REJECT-LOG: one skill per note type"
+rp review log show .
+```
 
-## 12. Where the build deviates from the proposal
+A lesson that outlives the project goes to the shared log with `rp review log promote . R1`. To bring a rejected idea back on the record: `rp review log revive . R1 --why "..."`.
 
-| topic | proposal | as built | why |
-|---|---|---|---|
-| where projects live | `work/<slug>/` inside this repository | each project is its own git repository; this repository holds only tools | git boundary per project; code and docs share one standard repo |
-| project layout | `docs/`, `pipeline/`, inputs at the root | `docs/` with `inputs/`, `reviews/`, `export/` inside; `src/`, `scripts/`, `runs/`; machine state in `.pipeline/` | the common research-repo shape; readable docs together, machine state hidden |
-| commit enforcement | hooks write the ledger | `rp commit` writes it; hooks verify | git snapshots the index before `commit-msg` runs |
-| hook scope | every commit under `work/` | only commits touching `docs/` or `.pipeline/` | code commits stay ordinary git |
-| `head` in the ledger | equals HEAD | equals the parent of the commit that carries it | the hash is unknown until the commit exists |
-| rejected-span check | ten words, against rejected attempts | six words, against logged proposals only | a retry legitimately keeps most of a rejected attempt's text |
-| object name length | two to four words | two to five words | some symbol names needed room |
-| split file title | the section heading | `<project title>: <section>` | the H1 and the first section heading would share one anchor |
-| step status recording | by the orchestrator | by `rp state step` before the commit and by `rp commit` on `PASS` and `REJECT` | so the ledger is inside the commit it describes |
-| intake review id | not specified | `<step>-in<n>` | distinguishes intake from gate reviews |
-| template binding | read from this repository | copied into `.pipeline/template.yaml` at init | a project must not change when the tool repository does |
+## 8. Split a long file, export a single one
 
-Everything else in the proposal's structure sections 1 to 10 is implemented as written. Sections 11 to 14 of the proposal, the orchestrator and the agents, are phase 2 and later.
+When `rp check .` warns that `DESIGN.md` is over budget, move a top-level section into its own file. Links keep working.
 
-## 13. Status and known gaps
+```
+rp doc split . design
+rp commit --all "wiki-skills/- SPLIT: design to design.md"
+```
 
-| phase | status | contents |
+For a collaborator who wants one file, with every split section inlined and an index of all objects appended:
+
+```
+rp doc export .
+open docs/export/wiki-skills-full.md
+```
+
+## 9. Code and experiments
+
+Ordinary git, any message:
+
+```
+$EDITOR src/vault.py
+git add src && git commit -m "vault reader"
+```
+
+Nothing under `docs/` or `.pipeline/` may be in a code commit. If you mix them, the hook refuses and prints the `rp commit` line to run instead.
+
+## 10. Share on GitHub
+
+Push the project repository as it is. The ledger commits are the record of how the idea evolved, and every review stores the commit it judged and the commit that applied it. Two rules follow. Never squash-merge; it rewrites the hashes the reviews point at. If you want a tidy main branch, do the work on a `pipeline` branch and `git merge --no-ff pipeline` into `main` at each stage completion, right after `rp doc export .`.
+
+A coworker who clones the project needs this tool repository too, and one of: the `rp` shim on their PATH, `AGENT_PIPELINE_ROOT` pointing at their clone, or the path written into `.pipeline/tool_root`, which is gitignored and machine-local.
+
+## 11. When something is refused
+
+| you see | it means | do |
 |---|---|---|
-| 0 | done | decisions D1–D27 |
-| 1 | done, self-tested | REFS, templates, intake templates, five step tables, `rp` and six tools, per-project hooks, self-test, `CLAUDE.md`, hygiene reviewer |
-| 2 | next | `/ideate`, `/review`, `/reject` skills; intake initializer and reviewer, doc keeper, plan reviewer, idea drafter, deriver, math checker, idea reviewer; the wiki-skills project through stage 2 |
-| 3 | | review converter, paper reader, wiki searcher, `/read`; five papers |
-| 4 | | stages 3 to 5 agents and skills; one idea to a recorded rewind |
-| 5 | | `/review-logs`, prune gates, revisit D12 and D24 |
+| `message must be '<slug>/<step> <VERB>...'` | a design or ledger file is staged with a plain commit message | use `rp commit "<slug>/<step> <VERB>: ..."` |
+| `PASS by 2b may not change ['§problem']` | the step in the message does not own the section you changed | use the owner step from `.pipeline/template.yaml` |
+| `staged .pipeline/state.yaml does not match` | you used raw `git commit` on ledger files | run the `rp commit` line it prints |
+| `review 2f-r1 is pending and routes to 2c` | you edited a section outside the route while a review is open | rerun the routed step first, or `rp review waive` with a reason |
+| `HARD ... bare object id 'A1' in prose` | an id appears in text instead of a name link | write `[name](#anchor)`; `rp doc resolve . A1` gives both |
+| `HARD ... banned phrase 'previously'` | the section narrates its own history | state only the current design; history lives in git and the log |
+| `HARD ... reuses a rejected proposal R2` | the text repeats something in `docs/REJECTED.md` | change the proposal, or `rp review log revive . R2 --why ...` |
+| `framing item must be answered by you` | an intake question with severity framing has no answer or says delegate | answer it |
+| `tree not clean under project` from `rp state check` | uncommitted changes under `docs/` or `.pipeline/` | commit them with `rp commit`, or `git checkout -- docs .pipeline` |
 
-Known gaps. The `CONTRACT.md` files still use bare ids in their examples and predate the object rules; each is rewritten with its stage's agents. No orchestrator exists, so section 8 is the operating procedure. The hygiene reviewer is the only agent and has not yet run against a real project. Export is markdown only. `rp review new --kind external` scaffolds the file, but splitting a coworker's text into items is the phase 3 converter agent. The benchmarks directory is empty. Stage 1 wiki notes use the same machinery but have no template yet; that comes with the paper reader in phase 3.
+`rp state check .` says `consistent` when the ledger and git agree. If it does not and you cannot see why, `rp state rebuild .` reconstructs the ledger from the git log.
+
+## 12. Command cheat sheet
+
+```
+rp doc init <slug> --template <t> --title "..." --at <dir>   new project repository
+rp doc get . <section>            print a section          rp doc put . <section> --from FILE   replace it
+rp doc resolve . <id|"name">      what an object is         rp doc split . <section>             move to its own file
+rp doc export .                   single-file export        rp check .                           run every rule
+rp state step . <step> done --inputs <sections and files>   record what a step was built from
+rp state show . | check . | rebuild .
+rp review new . --step <step> [--kind intake --input seed.md]   draft a review
+rp review commit|verify|apply|waive|reply <review file>
+rp review log add|show|promote|revive . ...
+rp commit --all "<slug>/<step> <VERB>: <one line>"           the only way to commit docs/ and .pipeline/
+```
+
+Verbs: `PASS` a step's output, `HUMAN` a hand edit, `REVIEW` `INTAKE` `APPLY` `WAIVE` for reviews, `SPLIT` `EXPORT` `REJECT-LOG` `INIT` with step `-`. Section ids may be typed with or without `§`; intake steps as `2a-in`.

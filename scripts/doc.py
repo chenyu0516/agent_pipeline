@@ -48,6 +48,8 @@ def main(argv=None):
         return
 
     tree = pl.Tree(Path(a.project))
+    if getattr(a, "section", None):
+        a.section = pl.norm_sid(a.section)
     if a.cmd == "index":
         idx = tree.build_index()
         print(f"indexed {len(idx['files'])} files, {len(idx['sections'])} sections, {len(idx['objects'])} objects")
