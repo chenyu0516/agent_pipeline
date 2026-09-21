@@ -1,0 +1,62 @@
+name: tooling
+description: A software tool or skill set, designed then validated against acceptance checks. Used for the first pipeline project, the Obsidian wiki-management skills.
+budget: {lines: 400, child_lines: 60, child_count: 3}
+kinds:
+  T: {kind: term, section: §design.terms}
+  Q: {kind: requirement, section: §design.requirements, tag_required: true}
+  C: {kind: component, section: §design.components}
+  I: {kind: interface, section: §design.interfaces}
+  PQ: {kind: acceptance, section: §design.acceptance, tests: Q}
+  PC: {kind: acceptance, section: §design.acceptance, tests: C}
+  H: {kind: check, section: §validation.checks, tests: [PQ, PC]}
+  F: {kind: fixture, section: §validation.procedure}
+  M: {kind: measure, section: §validation.procedure}
+sections:
+  - {id: §context, title: Context, owner: doc-keeper}
+  - {id: §problem, title: Problem, owner: 2a}
+  - {id: §position, title: Position, owner: 2b}
+  - id: §design
+    title: Design
+    owner: 2c
+    children:
+      - {id: §design.terms, title: Terms, owner: 2c}
+      - {id: §design.requirements, title: Requirements, owner: 2c}
+      - {id: §design.components, title: Components, owner: 2c}
+      - {id: §design.interfaces, title: Interfaces, owner: 2d}
+      - {id: §design.acceptance, title: Acceptance criteria, owner: 2e}
+  - {id: §data, title: Environment and fixtures, owner: 3b}
+  - id: §validation
+    title: Validation
+    owner: 3a
+    children:
+      - {id: §validation.checks, title: Checks, owner: 3a}
+      - {id: §validation.procedure, title: Procedure, owner: 3c}
+      - {id: §validation.risks, title: Risk audit, owner: 3d}
+  - {id: §implementation, title: Implementation, owner: 4a}
+  - {id: §results, title: Results, owner: 4e}
+  - {id: §status, title: Status, owner: orchestrator}
+inputs:
+  seed.md: {intake_step: 2a·in, consumed_by: 2a}
+  scribble.md: {intake_step: 2c·in, consumed_by: 2c}
+  data.md: {intake_step: 3b·in, consumed_by: 3b}
+steps:
+  2a: {stage: ideate, outputs: [§problem]}
+  2b: {stage: ideate, outputs: [§position]}
+  2c: {stage: ideate, outputs: [§design, §design.terms, §design.requirements, §design.components]}
+  2d: {stage: ideate, outputs: [§design.interfaces]}
+  2e: {stage: ideate, outputs: [§design.acceptance]}
+  2f: {stage: ideate, outputs: []}
+  2g: {stage: ideate, outputs: [§context, §status]}
+  3a: {stage: design, outputs: [§validation, §validation.checks]}
+  3b: {stage: design, outputs: [§data]}
+  3c: {stage: design, outputs: [§validation.procedure]}
+  3d: {stage: design, outputs: [§validation.risks]}
+  3e: {stage: design, outputs: [§context, §status]}
+  4a: {stage: implement, outputs: [§implementation]}
+  4b: {stage: implement, outputs: []}
+  4c: {stage: implement, outputs: []}
+  4d: {stage: implement, outputs: [§implementation]}
+  4e: {stage: implement, outputs: [§results]}
+  5a: {stage: verdict, outputs: []}
+  5b: {stage: verdict, outputs: [§status]}
+step_order: [2a, 2b, 2c, 2d, 2e, 2f, 2g, 3a, 3b, 3c, 3d, 3e, 4a, 4b, 4c, 4d, 4e, 5a, 5b]

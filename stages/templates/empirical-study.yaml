@@ -1,0 +1,60 @@
+name: empirical-study
+description: A data question with hypotheses and a test, no formal model. Stage 2 is short; the derivation section is replaced by a mechanism sketch.
+budget: {lines: 400, child_lines: 60, child_count: 3}
+kinds:
+  S: {kind: symbol, section: §model.notation}
+  A: {kind: assumption, section: §model.assumptions, tag_required: true}
+  R: {kind: result, section: §model.mechanism}
+  PA: {kind: prediction, section: §model.predictions, tests: A}
+  PR: {kind: prediction, section: §model.predictions, tests: R}
+  H: {kind: hypothesis, section: §experiment.hypotheses, tests: [PA, PR]}
+  F: {kind: feature, section: §experiment.procedure}
+  M: {kind: metric, section: §experiment.procedure}
+sections:
+  - {id: §context, title: Context, owner: doc-keeper}
+  - {id: §problem, title: Problem, owner: 2a}
+  - {id: §position, title: Position, owner: 2b}
+  - id: §model
+    title: Mechanism
+    owner: 2c
+    children:
+      - {id: §model.notation, title: Notation, owner: 2c}
+      - {id: §model.assumptions, title: Assumptions, owner: 2c}
+      - {id: §model.mechanism, title: Mechanism sketch, owner: 2d}
+      - {id: §model.predictions, title: Predictions, owner: 2e}
+  - {id: §data, title: Data, owner: 3b}
+  - id: §experiment
+    title: Experiment
+    owner: 3a
+    children:
+      - {id: §experiment.hypotheses, title: Hypotheses, owner: 3a}
+      - {id: §experiment.procedure, title: Procedure, owner: 3c}
+      - {id: §experiment.leakage, title: Leakage audit, owner: 3d}
+  - {id: §implementation, title: Implementation, owner: 4a}
+  - {id: §results, title: Results, owner: 4e}
+  - {id: §status, title: Status, owner: orchestrator}
+inputs:
+  seed.md: {intake_step: 2a·in, consumed_by: 2a}
+  scribble.md: {intake_step: 2c·in, consumed_by: 2c}
+  data.md: {intake_step: 3b·in, consumed_by: 3b}
+steps:
+  2a: {stage: ideate, outputs: [§problem]}
+  2b: {stage: ideate, outputs: [§position]}
+  2c: {stage: ideate, outputs: [§model, §model.notation, §model.assumptions]}
+  2d: {stage: ideate, outputs: [§model.mechanism]}
+  2e: {stage: ideate, outputs: [§model.predictions]}
+  2f: {stage: ideate, outputs: []}
+  2g: {stage: ideate, outputs: [§context, §status]}
+  3a: {stage: design, outputs: [§experiment, §experiment.hypotheses]}
+  3b: {stage: design, outputs: [§data]}
+  3c: {stage: design, outputs: [§experiment.procedure]}
+  3d: {stage: design, outputs: [§experiment.leakage]}
+  3e: {stage: design, outputs: [§context, §status]}
+  4a: {stage: implement, outputs: [§implementation]}
+  4b: {stage: implement, outputs: []}
+  4c: {stage: implement, outputs: []}
+  4d: {stage: implement, outputs: [§implementation]}
+  4e: {stage: implement, outputs: [§results]}
+  5a: {stage: verdict, outputs: []}
+  5b: {stage: verdict, outputs: [§status]}
+step_order: [2a, 2b, 2c, 2d, 2e, 2f, 2g, 3a, 3b, 3c, 3d, 3e, 4a, 4b, 4c, 4d, 4e, 5a, 5b]

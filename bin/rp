@@ -1,0 +1,4 @@
+#!/bin/sh
+# rp: run the agent_pipeline tools from anywhere. Add this repo's bin/ to PATH, or symlink this file.
+TOOL="$(cd "$(dirname "$(readlink "$0" || echo "$0")")/.." && pwd)"
+exec uv run --quiet --project "$TOOL" python "$TOOL/scripts/cli.py" "$@"

@@ -348,24 +348,7 @@ Step 2d derives the chain of consequences from the assumptions to named results,
 
 ### 15. Repository layout
 
-```
-agent/                              # git repository
-  CLAUDE.md  README.md
-  stages/REFS.md                    # section ids, object kinds and naming rules, taxonomy templates, review and intake schemas, banned phrases
-  stages/0N-*/CONTRACT.md STEPS.md
-  .claude/agents/<name>.md
-  .claude/skills/{read,ideate,design,implement,verdict,split,review,reject}/SKILL.md
-  .githooks/commit-msg pre-commit post-commit
-  scripts/doc.py ref_checker.py state.py review.py
-  work/<slug>/
-    docs/DESIGN.md  docs/model.md  docs/INDEX.yaml   # INDEX holds sections, versions, objects
-    export/<slug>-full.md                             # with registry appendix
-    pipeline/state.yaml  REJECTED.md  DEFERRED.md  attempts/  reviews/
-    seed.md scribble.md data.md questions.md
-    external/<from>-<date>.md
-    runs/<id>/
-  benchmarks/0N-*/
-```
+The layout as built, with every file annotated, is `README.md` section 3. The README also holds setup, tool descriptions, hook behavior, the manual operating procedure, template authoring, the self-test, and the table of where the build deviates from this document.
 
 ## Process: intake, review, import, rewind
 
