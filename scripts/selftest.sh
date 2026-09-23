@@ -1,7 +1,8 @@
 #!/bin/bash
 # Self-test: creates a fake project as its own git repository in a temporary directory and drives it through every
 # mechanism with the tools from this checkout. Prints ALL STEPS RAN on success. Usage: scripts/selftest.sh
-set -u
+set -euo pipefail
+trap 'echo "!! FAILED: selftest.sh line $LINENO exited $?"; exit 1' ERR
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
 export AGENT_PIPELINE_ROOT="$SRC"
