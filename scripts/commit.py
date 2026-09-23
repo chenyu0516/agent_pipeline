@@ -26,7 +26,7 @@ def pipeline_commit(root: Path, message: str, paths: list[Path] | None = None) -
         return pl.git_head_short(root)
     p = pl.parse_commit(message)
     if not p:
-        pl.die(f"message not in grammar: {message}")
+        pl.die(f"message not in grammar: {message}\n  " + pl.explain_commit(message).replace("\n", "\n  "))
     err = hooks.check_message(root, p)
     if err:
         pl.die(err)

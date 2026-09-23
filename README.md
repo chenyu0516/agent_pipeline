@@ -27,7 +27,7 @@ The last line must be `ALL STEPS RAN in /var/folders/.../vol-regime`. It builds 
 
 ## 2. Create a project
 
-Pick a slug: lowercase, hyphens, no spaces. Pick a template: `quant-model` for a mathematical model tested on data, `tooling` for a software project such as the wiki skills, `ml-model`, or `empirical-study`.
+Pick a slug: lowercase letters, digits, hyphens or underscores, no spaces. Pick a template: `quant-model` for a mathematical model tested on data, `tooling` for a software project such as the wiki skills, `ml-model`, or `empirical-study`.
 
 ```
 rp doc init wiki-skills --template tooling --title "Obsidian wiki skills" --at ~/research

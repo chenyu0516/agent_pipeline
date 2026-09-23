@@ -106,13 +106,65 @@ VERBS = [
     "REWIND", "STALE", "SPLIT", "EXPORT", "REJECT-LOG", "INIT",
 ]
 COMMIT_RE = re.compile(
-    r"^(?P<slug>[a-z0-9][a-z0-9\-]*)/(?P<step>[0-9][a-z](?:[·.\-]in)?|-) "
+    r"^(?P<slug>[a-z0-9][a-z0-9_\-]*)/(?P<step>[0-9][a-z](?:[·.\-]in)?|-) "
     r"(?P<verb>" + "|".join(re.escape(v) for v in VERBS) + r")"
     r"(?: a(?P<attempt>\d+))?"
     r"(?: (?P<review>(?:[0-9][a-z]|ext)-(?:r|in)\d+))?"
     r": (?P<msg>.{1,72})$"
 )
 REVIEW_ID_RE = re.compile(r"^(?:[0-9][a-z]|ext)-(?:r|in)\d+$")
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_\-]*$")
+STEP_RE = re.compile(r"^(?:[0-9][a-z](?:[·.\-]in)?|-)$")
+
+
+def suggest_slug(text: str) -> str:
+    """The nearest slug the commit grammar accepts: lowercase, digits, hyphens, underscores."""
+    s = re.sub(r"[^a-z0-9_]+", "-", text.strip().lower()).strip("-_")
+    return s or "project"
+
+
+def explain_commit(msg: str) -> str:
+    """Why a message fails COMMIT_RE, one actionable line per fault, then a corrected example."""
+    first = msg.strip().splitlines()[0] if msg.strip() else ""
+    out: list[str] = []
+    head, sep, rest = first.partition(": ")
+    if not sep:
+        out.append("missing ': ' (colon and space) between the verb and the one-line summary")
+        head, rest = first, ""
+    parts = head.split(" ")
+    slug, slash, step = parts[0].partition("/")
+    i = 1
+    if not slash:
+        out.append("missing '/' after the slug; the form is <slug>/<step>")
+        if len(parts) > 1 and STEP_RE.match(parts[1]):
+            step, i = parts[1], 2
+    if not SLUG_RE.match(slug):
+        out.append(f"slug '{slug}' may use only lowercase letters, digits, hyphens and underscores; try '{suggest_slug(slug)}'")
+    if slash and not STEP_RE.match(step):
+        out.append(f"step '{step}' must be a step id such as 2a or 2a-in, or '-' for INIT, SPLIT, EXPORT, REJECT-LOG, STALE")
+    verb = parts[i] if len(parts) > i else ""
+    if verb not in VERBS:
+        hint = f"; did you mean {verb.upper()}" if verb.upper() in VERBS else ""
+        out.append(f"verb '{verb}' is not one of: {', '.join(VERBS)}{hint}")
+    tail = parts[i + 1:]
+    if not sep:
+        # without a colon, the summary is whatever follows the tags; do not flag its words
+        n = 0
+        while n < len(tail) and (re.fullmatch(r"a\d+", tail[n]) or REVIEW_ID_RE.match(tail[n])):
+            n += 1
+        rest, tail = " ".join(tail[n:]), tail[:n]
+    for x in tail:
+        if not (re.fullmatch(r"a\d+", x) or REVIEW_ID_RE.match(x)):
+            out.append(f"'{x}' is neither an attempt tag such as a2 nor a review id such as 2f-r1")
+    if sep and not 1 <= len(rest) <= 72:
+        out.append(f"summary is {len(rest)} characters; the limit is 72")
+    if not out:
+        out.append("the parts are out of order; the form is <slug>/<step> <VERB>[ a<n>][ <review-id>]: <summary>")
+    ex_step = step if STEP_RE.match(step) else "-"
+    ex_verb = verb if verb in VERBS else (verb.upper() if verb.upper() in VERBS else "INIT")
+    ex_rest = rest[:72] if rest else "one line on what changed"
+    out.append(f"example: {suggest_slug(slug)}/{ex_step} {ex_verb}: {ex_rest}")
+    return "\n".join(out)
 
 
 # ----------------------------------------------------------------------------- small helpers
@@ -918,6 +970,9 @@ echo "pipeline hook: cannot find agent_pipeline tools; set AGENT_PIPELINE_ROOT o
 
 def init_project(slug: str, template_name: str, title: str | None = None, parent_dir: Path | None = None) -> Path:
     """Create a new project as its own git repository at <parent_dir>/<slug> (default: cwd/<slug>)."""
+    if not SLUG_RE.match(slug):
+        die(f"slug '{slug}' may use only lowercase letters, digits, hyphens and underscores, because every design commit "
+            f"is named '<slug>/<step> <VERB>: ...'; try '{suggest_slug(slug)}'")
     t = Template(template_name)
     work = (Path(parent_dir).resolve() if parent_dir else Path.cwd()) / slug
     if work.exists():

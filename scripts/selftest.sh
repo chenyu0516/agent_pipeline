@@ -11,7 +11,8 @@ PY="uv run --quiet --project $SRC python $SRC/scripts"
 step() { echo; echo "=== $*"; }
 expect_fail() { if "$@"; then echo "!! EXPECTED FAILURE BUT SUCCEEDED: $*"; exit 1; else echo "(refused as expected)"; fi; }
 
-step "1 init project as its own repo"
+step "1 init project as its own repo; a slug the commit grammar rejects is refused at init"
+expect_fail $PY/doc.py init Vol-Regime --template quant-model --at "$TMP"
 $PY/doc.py init vol-regime --template quant-model --title "Volatility regime filter" --at "$TMP"
 cd "$TMP/vol-regime"
 git config user.name tester; git config user.email t@example.com
@@ -24,6 +25,8 @@ git add src/run.py && git commit -q -m "add a script" && echo "free-form code co
 git add -A
 expect_fail git commit -q -m "add project"
 expect_fail git commit -q -m "vol-regime/- INIT: project created"
+out="$($PY/commit.py --all "Vol-Regime/- init project created" 2>&1 || true)"
+grep -q "try 'vol-regime'" <<<"$out" && grep -q "missing ': '" <<<"$out" && grep -q "verb 'init'" <<<"$out" && echo "grammar refusal diagnoses slug, colon, and verb"
 $PY/commit.py --all "vol-regime/- INIT: project created" && echo ok
 $PY/state.py check .
 
@@ -207,4 +210,13 @@ step "16 consistency and rebuild"
 $PY/state.py check .
 $PY/state.py rebuild .
 git log --oneline | head -20
+step "17 runbook path: underscore slug, INIT as the root commit, check and rebuild agree"
+$PY/doc.py init quant_frame --template quant-model --title "Quant frame" --at "$TMP" | head -1
+cd "$TMP/quant_frame"
+git config user.name tester; git config user.email t@example.com
+$PY/commit.py --all "quant_frame/- INIT: project created" && echo ok
+$PY/state.py check .
+$PY/state.py rebuild .
+cd "$TMP/vol-regime"
+
 echo; echo "ALL STEPS RAN in $TMP/vol-regime"

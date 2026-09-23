@@ -9,7 +9,8 @@ The project is the repository: hooks act when staged paths touch docs/ or .pipel
 (src/, scripts/, runs/, README) commits freely with any message.
 
 `head` in state.yaml is the HEAD seen by the last tool that wrote the state, so it is the parent of the
-commit that carries it. state.py check accepts head == HEAD or head == HEAD^ when HEAD touches the ledger.
+commit that carries it. state.py check accepts head == HEAD or head == HEAD^ when HEAD touches the ledger, and the '0000000'
+placeholder when HEAD is the root commit.
 """
 from __future__ import annotations
 
@@ -146,6 +147,8 @@ def commit_msg(root: Path, msg_file: Path) -> int:
         print("commit-msg: docs/ or .pipeline/ is touched, message must be '<slug>/<step> <VERB>[ a<n>][ <review-id>]: <one line>'")
         print(f"  verbs: {', '.join(pl.VERBS)}")
         print(f"  got: {first}")
+        for line in pl.explain_commit(first).splitlines():
+            print(f"  {line}")
         return 1
     err = check_message(root, p)
     if err:

@@ -180,6 +180,8 @@ A commit that touches any path under `docs/` or `.pipeline/` must have the messa
 
 Verbs: `PASS`, `REJECT`, `HUMAN`, `INTAKE`, `REVIEW`, `IMPORT`, `APPLY`, `WAIVE`, `LOOP`, `REWIND`, `STALE`, `SPLIT`, `EXPORT`, `REJECT-LOG`, `INIT`.
 
+Slug is the project directory name: lowercase letters, digits, hyphens, and underscores, starting with a letter or digit. `rp doc init` refuses any other slug, and a refused message prints which part failed and a corrected example.
+
 Step is a step id from `STEPS.md`, or `-` for commits not tied to a step (`SPLIT`, `EXPORT`, `INIT`, `REJECT-LOG`, `STALE`).
 
 Design and ledger commits go through `rp commit "<message>"`, which runs every check below, writes the ledger the message implies, stages `docs/` and `.pipeline/`, and commits. The hooks are the guard: `pre-commit` fixes links, bumps versions, rebuilds the index, and blocks on hard failures; `commit-msg` checks grammar, ownership, and route, then refuses a raw `git commit` whose staged `state.yaml` differs from what the message implies and prints the `rp commit` line to run. Git snapshots the index after `pre-commit`, so a hook cannot write a message-dependent ledger into the same commit; that is why the wrapper exists.

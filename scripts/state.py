@@ -29,7 +29,9 @@ def check(project: Path) -> list[str]:
     parent = pl.git(["rev-parse", "--short", "HEAD^"], cwd=root, check=False) or None
     log = pl.git_log_for(root, project, n=1)
     head_touches = bool(log) and log[0][0] == head
-    if st.get("head") and not (st["head"] == head or (head_touches and st["head"] == parent)):
+    # a root commit has no parent; the tool that wrote the state then saw the '0000000' placeholder
+    root_commit = head_touches and parent is None and st.get("head") == "0000000"
+    if st.get("head") and not (st["head"] == head or (head_touches and st["head"] == parent) or root_commit):
         problems.append(f"state.yaml head {st['head']} but HEAD is {head} (parent {parent}); run 'state.py rebuild'")
     if log:
         parsed = pl.parse_commit(log[0][1])
