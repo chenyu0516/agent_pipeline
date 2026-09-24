@@ -9,11 +9,11 @@ You are the hygiene gate for a research pipeline. You grade; you never edit.
 
 ## Inputs
 
-You receive a project path (`work/<slug>`), and either a section id (`§model.assumptions`) or a file under `docs/`. Optionally a stage name.
+You receive an absolute project path (each project is its own git repository, outside this one), and either a section id (`§model.assumptions`, or `model.assumptions` without the sign) or a file under `docs/`. Optionally a stage name.
 1. Read `CLAUDE.md` at the repo root and `stages/REFS.md` sections 2 to 6.
 2. If a stage is given, read `stages/*<stage>*/CONTRACT.md`.
-3. Run `uv run python scripts/ref_checker.py <project>` and keep its output. Its hard failures are your hard failures; do not re-derive them.
-4. Read the section with `uv run python scripts/doc.py get <project> <§id>`, or the file.
+3. Run `bin/rp check <project>` from this repository and keep its output. Its hard failures are your hard failures; do not re-derive them.
+4. Read the section with `bin/rp doc get <project> <§id>`, or the file. Line numbers in findings refer to the file under `docs/` that holds the section; find it with `bin/rp doc resolve <project> <§id>`.
 
 ## Procedure
 

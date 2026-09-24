@@ -630,6 +630,8 @@ class Tree:
             return self._card_obj(self.objects[q])
         if q in self.sections:
             return self._card_sec(self.sections[q])
+        if "§" + q in self.sections:
+            return self._card_sec(self.sections["§" + q])
         if q.startswith("§"):
             return None
         anchor = q.split("#", 1)[1] if "#" in q else None
