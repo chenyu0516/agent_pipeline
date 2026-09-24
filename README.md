@@ -27,10 +27,10 @@ The last line must be `ALL STEPS RAN in /var/folders/.../vol-regime`. It builds 
 
 ## 2. Create a project
 
-Pick a slug: lowercase letters, digits, hyphens or underscores, no spaces. Pick a template: `quant-model` for a mathematical model tested on data, `tooling` for a software project such as the wiki skills, `ml-model`, or `empirical-study`.
+Pick a slug: lowercase letters, digits, hyphens or underscores, no spaces. Every project starts from the same universal core: problem, position, model with notation, assumptions, statement, reasoning and predictions, data, experiment, implementation, results. Requirements need not be settled at the start. Sections are added later as they settle, by hand today and by the update agent once it exists. The presets in `stages/templates/` remain available with `--template <name>` but are not the default.
 
 ```
-rp doc init wiki-skills --template tooling --title "Obsidian wiki skills" --at ~/research
+rp doc init wiki-skills --title "Obsidian wiki skills" --at ~/research
 cd ~/research/wiki-skills
 rp commit --all "wiki-skills/- INIT: project created"
 ```

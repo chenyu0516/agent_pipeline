@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """doc.py: the document tree tool.
 
-  doc.py init <slug> --template <name> [--title "..."] [--at PARENT_DIR]   new project = new git repo at PARENT_DIR/<slug>
+  doc.py init <slug> [--template <name>] [--title "..."] [--at PARENT_DIR]   new project = new git repo at PARENT_DIR/<slug>; template defaults to universal
   doc.py index <project>                 rebuild INDEX.yaml and REGISTRY.md
   doc.py get <project> <§id>             print a section
   doc.py put <project> <§id> --from FILE|-   replace a section (bumps the file version)
@@ -29,7 +29,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(prog="doc.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("init"); p.add_argument("slug"); p.add_argument("--template", required=True); p.add_argument("--title"); p.add_argument("--at")
+    p = sub.add_parser("init"); p.add_argument("slug"); p.add_argument("--template", default="universal"); p.add_argument("--title"); p.add_argument("--at")
     for name in ["index", "export", "budget", "version", "relink"]:
         sub.add_parser(name).add_argument("project")
     p = sub.add_parser("get"); p.add_argument("project"); p.add_argument("section")

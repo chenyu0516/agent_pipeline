@@ -210,8 +210,8 @@ step "16 consistency and rebuild"
 $PY/state.py check .
 $PY/state.py rebuild .
 git log --oneline | head -20
-step "17 runbook path: underscore slug, INIT as the root commit, check and rebuild agree"
-$PY/doc.py init quant_frame --template quant-model --title "Quant frame" --at "$TMP" | head -1
+step "17 runbook path: universal core with no template, underscore slug, INIT as the root commit, check and rebuild agree"
+$PY/doc.py init quant_frame --title "Quant frame" --at "$TMP" | head -1   # no --template: the universal core
 cd "$TMP/quant_frame"
 git config user.name tester; git config user.email t@example.com
 $PY/commit.py --all "quant_frame/- INIT: project created" && echo ok

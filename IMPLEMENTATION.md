@@ -6,6 +6,8 @@ Reference and verification map for the tools. The runbook is `README.md`; the de
 
 Brief goal, from the proposal: one design document per research project, a git ledger that records how it evolved, and a human at every decision. The tools make it impossible to commit a document or ledger that breaks the rules.
 
+Three standing decisions shape the plan below. Every project starts from the same universal core, not from a chosen template; the requirements of a project are not settled at the start, so sections are added as they settle. An agent helps the human draft each input until it is good enough, and that agent is the first thing phase 2 builds. An update agent revises requirements mid-project and is planned now but built last, so the build stays small.
+
 Each function below is one row. **Given** is the state before, **When** is the action, **Then** is the observable outcome. The standard is what proves the row done. The check column says where that proof lives:
 
 | check | meaning |
@@ -85,7 +87,7 @@ Built and self-tested. Every row here is what `rp selftest` proves, or does not.
 
 | function | given, when, then | standard | check |
 |---|---|---|---|
-| create a project | Given a slug in grammar and a template name. When init runs with `--at DIR`. Then `DIR/<slug>` is a git repository with hooks enabled, `DESIGN.md` holds every template section as pending, the input files exist, and `state.yaml` and the template copy are written. | `rp check` prints `0 hard` on the new project | selftest 1, 17 |
+| create a project | Given a slug in grammar. When init runs with `--at DIR` and no `--template`. Then `DIR/<slug>` is a git repository with hooks enabled, `DESIGN.md` holds every universal core section as pending, the input files exist, and `state.yaml` and the template copy are written. | `rp check` prints `0 hard` on the new project | selftest 17; selftest 1 with the quant-model preset |
 | refuse a bad slug | Given a slug with uppercase or other characters outside the grammar. When init runs. Then nothing is created and the message names the nearest valid slug. | init exits nonzero; no directory | selftest 1 |
 
 ### 4.2 Document tree, `rp doc`
@@ -178,10 +180,10 @@ Built and self-tested. Every row here is what `rp selftest` proves, or does not.
 
 | function | given, when, then | standard | check |
 |---|---|---|---|
-| quant-model | Given the template. When a project is driven through stage 2 mechanics. Then every section, kind, owner, and step resolves. | full self-test | selftest 1 to 17 |
-| ml-model | Same. | init, one PASS, one review | none |
-| empirical-study | Same. | init, one PASS, one review | none |
-| tooling | Same, with the renamed kinds: terms, requirements, components, interfaces, acceptance criteria, checks, fixtures, measures. | init, one PASS, one review | none |
+| universal | Given no `--template`. When init runs. Then the core sections in section 10 exist with their kinds, owners, and steps. | init, INIT commit, `rp state check` consistent | selftest 17 |
+| quant-model preset | Given `--template quant-model`. When a project is driven through stage 2 mechanics. Then every section, kind, owner, and step resolves. | full self-test | selftest 1 to 16 |
+| ml-model, empirical-study, tooling presets | Same, optional starts. | init, one PASS, one review | none |
+| add a section after init | Given a project whose requirements have settled further. When the human edits `.pipeline/template.yaml` and inserts the pending heading in `DESIGN.md` in one commit. Then the checker accepts the new section and its owner. | `rp check` prints `0 hard`; a PASS by the owner succeeds | none; manual until `rp doc add-section` exists, see section 8 |
 
 ### 4.9 Agents
 
@@ -191,12 +193,13 @@ Built and self-tested. Every row here is what `rp selftest` proves, or does not.
 
 ## 5. Phase 2 functions: ideate
 
-Not built. The check column is the check that will prove each row; all are `none` today.
+Not built. The check column is the check that will prove each row; all are `none` today. The intake drafter comes first, because every later step consumes an input it helped write.
 
 | function | given, when, then | standard | check |
 |---|---|---|---|
+| `intake-drafter` | Given an input file with empty or thin headings and a human in the conversation. When it runs. Then it asks one question at a time, writes the human's answers under the right heading in the human's words, never invents a fact, a number, or a preference, and stops when the input is good enough. | good enough: every heading outside `## Decisions` has content, no `[fill: ...]` marker remains, and `intake-reviewer` finds no open framing item | none; first check is `seed.md` of the first real project |
 | `/ideate <slug>` | Given a project with `seed.md` filled. When the skill runs. Then it issues exactly the runbook commands step by step, stops at every ⏸ and ⌂ gate, and never edits a section it does not own. | git log of the run equals the runbook sequence | none; benchmark project through stage 2 |
-| `intake-initializer` | Given a base input template and the project taxonomy. When it runs once. Then the input file carries prompts specialized to the template. | file ends with `## Decisions` | none |
+| `intake-initializer` | Given a base input template and the project's current sections. When it runs once. Then the input file carries prompts specialized to them. Folded into `intake-drafter` if the two prove to be one job. | file ends with `## Decisions` | none |
 | `intake-reviewer` | Given a filled input. When it runs. Then a draft intake review lists framing, structural, and detail items, each with options. | no open framing item after the human answers | none |
 | `idea-drafter` at 2a | Given `seed.md` with decisions and the rejection log. When it runs. Then `§problem` is written with `Choices made` listing only delegated choices. | hygiene PASS; `plan-reviewer` draft; human accepts | none; 3 benchmark seeds |
 | `idea-drafter` at 2c | Given `§problem`, `§position`, `scribble.md` with decisions. When it runs. Then notation, named and tagged assumptions, and the formal model are written with a scribble diff appendix. | hygiene PASS; every assumption tagged | none; 3 benchmark seeds |
@@ -236,10 +239,16 @@ Exit criterion for phase 2: the first real project passes 2g with every gate rev
 
 Exit criterion for phase 4: one idea driven from `seed.md` to a recorded rewind, with the rewind visible in `rp state show`.
 
-## 8. Phase 5 functions: maintenance
+## 8. Phase 5 functions: the update agent and maintenance
+
+Built last. The update agent is planned here so that nothing earlier is built in a way that blocks it, and deferred so that phases 2 to 4 stay small.
 
 | function | given, when, then | standard | check |
 |---|---|---|---|
+| `rp doc add-section` | Given a section id, title, owner, and parent. When it runs. Then the project's template copy gains the section, `DESIGN.md` gains the pending heading in template order, the step's outputs gain the id, and the index rebuilds. | `rp check` prints `0 hard`; the owner's PASS succeeds | none |
+| `rp doc drop-section` | Given a section with no objects linked from elsewhere. When it runs. Then it leaves the tree and the template copy, and the ledger records the removal. | `rp check` prints `0 hard`; links to it would have been refused | none |
+| `requirements-updater` | Given a human saying what changed about the requirements, mid-project. When it runs. Then it proposes the section additions, removals, and retitles as a draft review, and applies only what the human accepts, through the two commands above. | every step whose inputs changed is marked stale; nothing is deleted from git; the review is in `docs/reviews/` | none; first check is one real requirement change on the first real project |
+| update the intake | Given a new or changed section. When the updater runs. Then the affected input file gains the prompts the section needs and the human is asked to fill them with `intake-drafter`. | intake review with no open framing item | none |
 | `/review-logs` | Given a week of commits. When it runs. Then REJECT commits, reopened items, countered `Choices made`, and renamed objects are listed. | report matches `git log` | none |
 | prune gates | Given gate statistics. When reviewed. Then gates that never changed a verdict are removed from STEPS. | decision recorded in the proposal | none |
 | revisit D12 and D24 | Decisions on review depth and the global log. | recorded | none |
@@ -269,7 +278,7 @@ A template is one YAML file in `stages/templates/`. `rp doc init` copies it into
 | `steps` | each step's `stage` and `outputs`, the sections it may write |
 | `step_order` | the order used for route checks and for the stage a step belongs to |
 
-To add a template, copy `quant-model.yaml`, rename kinds and sections, keep the step ids so the step tables and hooks still apply, and keep `§context` first and `§status` last. A new template counts as verified when section 4.8's standard holds for it.
+`universal.yaml` is the default and the core every project starts from: context, problem, position, model with notation, assumptions, statement, reasoning and predictions, data and environment, experiment with hypotheses, procedure and a leakage and risk audit, implementation, results, status. Its ids match the three research presets, so the step tables, the contracts, and `CLAUDE.md` apply unchanged; only its titles are generic. The presets are optional starts. To change a project's sections after init, edit its `.pipeline/template.yaml` and `DESIGN.md` together in one commit; a section in the template copy but absent from the tree is a hard failure; a section in the tree but absent from the template copy is a warning; a section in both passes. Keep `§context` first and `§status` last.
 
 ## 11. Where the build deviates from the proposal
 
@@ -287,6 +296,7 @@ To add a template, copy `quant-model.yaml`, rename kinds and sections, keep the 
 | intake review id | not specified | `<step>-in<n>` | distinguishes intake from gate reviews |
 | template binding | read from this repository | copied into `.pipeline/template.yaml` at init | a project must not change when the tool repository does |
 | id typing | `§problem`, `2a·in` | also `problem`, `2a-in` | `§` and `·` are hard to type |
+| project start, D15 | per-project template chosen at init | one universal core for every project; presets optional; sections added as requirements settle | requirements are not known at the start; a template forces a guess |
 | slug charset | not specified | lowercase letters, digits, hyphens, underscores | underscores are common directory names and are unambiguous in the grammar |
 
 Everything else in the proposal's structure sections 1 to 10 is implemented as written. Sections 11 to 14 of the proposal, the orchestrator and the agents, are phases 2 and later.
@@ -297,9 +307,9 @@ Everything else in the proposal's structure sections 1 to 10 is implemented as w
 |---|---|---|---|
 | 0 | done | decisions D1 to D27 | |
 | 1 | built | every `selftest` row in section 4 | every `none` row in section 4: merge, budget, relink, bump, review external kind, validate, disposition, waive, reply, progress cap, three templates, hook output, and the hygiene reviewer until the runbook's step 4 is done on a real project |
-| 2 | next | | section 5 |
+| 2 | next | | section 5, starting with `intake-drafter` |
 | 3 | | | section 6 |
 | 4 | | | section 7 |
-| 5 | | | section 8 |
+| 5 | last | | section 8, the update agent and `rp doc add-section` |
 
 Known gaps beyond the tables. The `CONTRACT.md` files still use bare ids in their examples and predate the object rules; each is rewritten with its stage's agents. No orchestrator exists, so the README runbook is the operating procedure. Export is markdown only. The benchmarks directory is empty. Stage 1 wiki notes have no template yet.

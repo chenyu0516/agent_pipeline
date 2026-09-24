@@ -66,7 +66,8 @@ A section is a heading whose next non-blank line is a section comment:
 - Extent: from the heading to the next heading of equal or higher level, or end of file.
 - Owner: a step id from `STEPS.md`, `doc-keeper`, or `orchestrator`. Only the owner's step may change the section in a `PASS` or `REJECT` commit.
 - Empty section body: exactly `[pending: step <id>]`.
-- The set and order of sections come from the project's taxonomy template in `stages/templates/`.
+- The set and order of sections come from the project's template copy, `.pipeline/template.yaml`. `doc.py init` writes it from the universal core, `stages/templates/universal.yaml`, unless `--template` names a preset.
+- A section is added after init by editing the template copy and inserting the pending heading in the tree in the same commit. A section in the copy but not in the tree is a hard failure; a section in the tree but not in the copy is a warning; a section in both passes.
 
 A stub marks a section that has moved to another file:
 
@@ -128,7 +129,7 @@ Hard failures under `docs/`:
 - a banned phrase: previously, originally, we changed, was rejected, instead of the earlier, as before, updated to, formerly, no longer, used to;
 - a span of six or more consecutive words reused from a rejected proposal in the rejection log for the same section or an object in it (rejected attempts are quality failures and are not matched, since a retry legitimately keeps most of its text).
 
-Warnings: file over budget; section with three or more children each over sixty lines; stub summary pending.
+Warnings: file over budget; section with three or more children each over sixty lines; stub summary pending; a section in the tree that is not in the template copy.
 
 ## 7. Versions
 
@@ -168,7 +169,7 @@ rejected_count: 19
 
 Step status: `pending`, `in_progress`, `done`, `stale`. `reverify_ok` is true when the step's inputs changed but no object its sections link changed, so the orchestrator may offer re-verify only.
 
-`head` is the HEAD seen when the ledger was last written, so it is the parent of the commit that carries it. `state.py check` accepts `head == HEAD`, or `head == HEAD^` when HEAD touches the project.
+`head` is the HEAD seen when the ledger was last written, so it is the parent of the commit that carries it, or `0000000` when that commit is the root of the repository. `state.py check` accepts `head == HEAD`, `head == HEAD^` when HEAD touches the project, or the placeholder when HEAD is the root commit.
 
 ## 9. Commit grammar
 
@@ -242,7 +243,7 @@ Fourth field is an object id with name, or a section id. `revived` entries get `
 
 ## 12. Taxonomy templates
 
-`stages/templates/<name>.yaml` defines the sections in order with owners and object kinds, the kind table, and which sections each step outputs. `doc.py init --template <name>` instantiates it. Available: `quant-model`, `tooling`, `ml-model`, `empirical-study`.
+`stages/templates/<name>.yaml` defines the sections in order with owners and object kinds, the kind table, and which sections each step outputs. `doc.py init` instantiates `universal`, the core every project starts from, unless `--template <name>` names a preset: `quant-model`, `tooling`, `ml-model`, `empirical-study`. The instantiated copy in `.pipeline/template.yaml` is the project's own from then on and may gain sections, per section 3.
 
 ## 13. Commands
 
@@ -250,7 +251,7 @@ All run as `rp <tool> ...` from anywhere once `<agent_pipeline>/bin` is on `PATH
 
 | tool | what it does |
 |---|---|
-| `doc.py init <slug> --template <name> [--at DIR]` | create `DIR/<slug>/` as a new git repository with hooks enabled, from a taxonomy template, with input files from `stages/intake/` |
+| `doc.py init <slug> [--template <name>] [--at DIR]` | create `DIR/<slug>/` as a new git repository with hooks enabled, from the universal core or a named preset, with input files from `stages/intake/`; refuses a slug outside the grammar |
 | `doc.py get/put/append <project> <§id>` | read or replace one section; `put` bumps the file version |
 | `doc.py resolve <project> <id\|name\|file#anchor>` | the object card: id, name, kind, tag, file, version, section, hash, linked from, text |
 | `doc.py split/merge <project> <§id>` | move a section to its own file and back; links are rewritten |
@@ -265,4 +266,4 @@ All run as `rp <tool> ...` from anywhere once `<agent_pipeline>/bin` is on `PATH
 
 ## 14. Intake templates
 
-`stages/intake/<input>.md` is the base structural template the `intake-initializer` specializes for a project. Slots are `[fill: <what goes here and why the generator needs it>]`. The filled file is the input itself; answers to intake review items go under `## Decisions` as `- Q1: <answer> (answered|delegate)`.
+`stages/intake/<input>.md` is the base structural template the `intake-initializer` specializes for a project and the `intake-drafter` fills with the human. Slots are `[fill: <what goes here and why the generator needs it>]`; an input is good enough when every heading outside `## Decisions` has content and no slot marker remains. The filled file is the input itself; answers to intake review items go under `## Decisions` as `- Q1: <answer> (answered|delegate)`.
