@@ -682,7 +682,26 @@ class Tree:
         head = git_head_short(self.project)
         return "\n".join([head] + [f"{rel}: v{v}" for rel, v in self.versions().items()])
 
+    def file_key(self, arg: str) -> str:
+        """Accept a docs-relative key (DESIGN.md), a project-relative path (docs/DESIGN.md), or an absolute path."""
+        p = Path(arg)
+        cands = [arg.strip()]
+        try:
+            cands.append(str((p if p.is_absolute() else Path.cwd() / p).resolve().relative_to(self.docs.resolve())))
+        except ValueError:
+            pass
+        if not p.is_absolute():
+            try:
+                cands.append(str((self.project / p).resolve().relative_to(self.docs.resolve())))
+            except ValueError:
+                pass
+        for c in cands:
+            if c in self.files:
+                return c
+        die(f"no file '{arg}' under docs/; known files: {', '.join(sorted(self.files))}")
+
     def bump(self, rel: str) -> int:
+        rel = self.file_key(rel)
         f = self.files[rel]
         if f.decl_line is None:
             die(f"{rel}: no file declaration to bump")

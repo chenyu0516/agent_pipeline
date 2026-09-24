@@ -12,8 +12,8 @@
   doc.py export <project>
   doc.py budget <project>
   doc.py version <project>
+  doc.py bump <project> <file>          bump one file's version; <file> is DESIGN.md, docs/DESIGN.md, or an absolute path
   doc.py relink <project>                fix link paths and texts
-  doc.py bump <project> <file>
 """
 from __future__ import annotations
 

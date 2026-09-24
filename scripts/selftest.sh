@@ -217,6 +217,9 @@ git config user.name tester; git config user.email t@example.com
 $PY/commit.py --all "quant_frame/- INIT: project created" && echo ok
 $PY/state.py check .
 $PY/state.py rebuild .
+$PY/doc.py bump . docs/DESIGN.md | grep -q "v2" && echo "bump accepts a project-relative path"
+expect_fail $PY/doc.py bump . docs/nope.md
+git checkout -q -- docs .pipeline
 cd "$TMP/vol-regime"
 
 echo; echo "ALL STEPS RAN in $TMP/vol-regime"

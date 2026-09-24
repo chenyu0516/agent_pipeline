@@ -105,13 +105,14 @@ Built and self-tested. Every row here is what `rp selftest` proves, or does not.
 | version | Given any tree. When version runs. Then every file and its version print. | matches `state.yaml` versions | selftest 8 |
 | budget | Given a file over the template's line budget. When budget runs. Then the file and the split trigger are named. | a report line per file over budget | none |
 | relink | Given links whose paths went stale. When relink runs. Then paths are rewritten. | `rp check` reports no unresolved link | none, see fix-links below |
-| bump | Given a file. When bump runs. Then its version rises by one. | printed version | none |
+| bump | Given a file as a docs-relative key, a project-relative path, or an absolute path. When bump runs. Then its version rises by one; an unknown file is refused with the known files listed. | printed version; nonzero exit on an unknown file | selftest 17 |
 
 ### 4.3 Reference checker, `rp check`
 
 | function | given, when, then | standard | check |
 |---|---|---|---|
 | clean tree passes | Given sections with symbols, assumptions, results, and links. When check runs. Then it prints `0 hard`. | exit 0 | selftest 1, 5, 12 |
+| scope | The checker enforces only the deterministic rules in REFS section 6 and the line budget. Sentence length, paragraph length, hedging and filler words, bold count, and the skim rule stay with `doc-hygiene-reviewer` by decision. | no prose-style rule in the checker | by inspection |
 | bare id is hard | Given prose containing `A1`. When check runs. Then a `HARD` line quotes it. | exit 1 with `--quiet` | selftest 6 |
 | banned phrase is hard | Given prose containing `previously`. When check runs. Then a `HARD` line quotes it. | exit 1 | selftest 6 |
 | rejected span is hard | Given a section reusing six words of a logged proposal. When check runs. Then a `HARD` line names the log entry. | exit 1 | selftest 15 |
@@ -189,7 +190,7 @@ Built and self-tested. Every row here is what `rp selftest` proves, or does not.
 
 | function | given, when, then | standard | check |
 |---|---|---|---|
-| doc-hygiene-reviewer | Given an absolute project path, a section id, and a stage. When the agent runs from this repository. Then it prints the fixed report: verdict, hard failures with line and quote, seven soft scores, top three fixes, and never edits. | catches a planted violation; a human agrees with each finding | manual, README step 4 |
+| doc-hygiene-reviewer | Given an absolute project path, a section id, and a stage. When the agent runs from this repository. Then it prints the fixed report: verdict, hard failures with line and quote, seven soft scores, top three fixes, and never edits. | catches a planted violation; a human agrees with each finding | manual, README step 4; passed on the first real project on 2026-09-24 |
 
 ## 5. Phase 2 functions: ideate
 
@@ -306,7 +307,7 @@ Everything else in the proposal's structure sections 1 to 10 is implemented as w
 | phase | status | verified | unverified |
 |---|---|---|---|
 | 0 | done | decisions D1 to D27 | |
-| 1 | built | every `selftest` row in section 4 | every `none` row in section 4: merge, budget, relink, bump, review external kind, validate, disposition, waive, reply, progress cap, three templates, hook output, and the hygiene reviewer until the runbook's step 4 is done on a real project |
+| 1 | built | every `selftest` row in section 4 | every `none` row in section 4: merge, budget, relink, bump, review external kind, validate, disposition, waive, reply, progress cap, three presets, hook output |
 | 2 | next | | section 5, starting with `intake-drafter` |
 | 3 | | | section 6 |
 | 4 | | | section 7 |
